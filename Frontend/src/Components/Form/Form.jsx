@@ -30,7 +30,7 @@ const Form = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:3000/submit-form', {
+      const response = await fetch('http://localhost:8081/api/submit-form', { // Ensure the URL and port are correct
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -40,7 +40,7 @@ const Form = () => {
 
       if (response.ok) {
         toast.success('Submission Successful!');
-        setFormData(initialState);  // Reset form after successful submission
+        setFormData(initialState); // Reset form after successful submission
       } else {
         const errorText = await response.text();
         throw new Error(errorText || 'Failed to submit form');
