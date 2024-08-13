@@ -120,6 +120,38 @@ app.get('/api/download-records', (req, res) => {
     });
 });
 
+// DELETE endpoint to delete a record by ID
+app.delete('/api/delete-record/:id', (req, res) => {
+    const { id } = req.params;
+    const sql = 'DELETE FROM billingrecords WHERE id = ?';
+    db.query(sql, [id], (err, results) => {
+        if (err) {
+            console.error('Failed to delete record:', err);
+            res.status(500).send('Failed to delete record: ' + err.message);
+            return;
+        }
+        res.status(200).send('Record deleted successfully');
+    });
+});
+
+// DELETE endpoint to delete multiple records by IDs
+app.delete('/api/delete-records', (req, res) => {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).send('No records selected for deletion');
+    }
+
+    const sql = 'DELETE FROM billingrecords WHERE id IN (?)';
+    db.query(sql, [ids], (err, results) => {
+        if (err) {
+            console.error('Failed to delete records:', err);
+            res.status(500).send('Failed to delete records: ' + err.message);
+            return;
+        }
+        res.status(200).send('Records deleted successfully');
+    });
+});
+
 // Start the server
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

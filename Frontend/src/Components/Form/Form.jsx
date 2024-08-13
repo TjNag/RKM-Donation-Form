@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import logo from '../../assets/logo.png';
@@ -21,14 +21,20 @@ const Form = () => {
   };
 
   const [formData, setFormData] = useState(initialState);
+  const [showPreview, setShowPreview] = useState(false);
+  const billRef = useRef(null); // Ref for the bill section
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prevState => ({ ...prevState, [name]: value }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleGenerateBill = (e) => {
     e.preventDefault();
+    setShowPreview(true); // Show preview without saving to database
+  };
+
+  const handleConfirmSubmit = async () => {
     try {
       const response = await fetch('http://localhost:8081/api/submit-form', { // Ensure the URL and port are correct
         method: 'POST',
@@ -40,7 +46,8 @@ const Form = () => {
 
       if (response.ok) {
         toast.success('Submission Successful!');
-        setFormData(initialState); // Reset form after successful submission
+        setShowPreview(false); // Hide the preview after successful submission
+        setTimeout(() => window.location.reload(), 1000); // Refresh the page after 1 second
       } else {
         const errorText = await response.text();
         throw new Error(errorText || 'Failed to submit form');
@@ -52,6 +59,25 @@ const Form = () => {
 
   const handleClear = () => {
     setFormData(initialState);
+    setShowPreview(false);
+  };
+
+  const handlePrint = () => {
+    const printContents = billRef.current.innerHTML;
+    const originalContents = document.body.innerHTML;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Print Bill</title>
+        </head>
+        <body onload="window.print();window.close();">
+          ${printContents}
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   return (
@@ -60,7 +86,7 @@ const Form = () => {
         <img src={logo} alt="RKMG Logo" className="w-24 h-24 mb-4"/>
         <h1 className="text-3xl font-semibold mb-6">RKMG Billing Form</h1>
       </div>
-      <form onSubmit={handleSubmit} className="space-y-6 px-8">
+      <form onSubmit={handleGenerateBill} className="space-y-6 px-8">
         {[
           { label: 'Name', id: 'name', type: 'text', required: true },
           { label: 'Address', id: 'address', type: 'text', required: true },
@@ -93,7 +119,7 @@ const Form = () => {
         ))}
         <div className="flex justify-between mt-6">
           <button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded">
-            Submit
+            Generate Bill
           </button>
           <button type="button" onClick={handleClear} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">
             Clear All
@@ -101,6 +127,64 @@ const Form = () => {
         </div>
       </form>
       <ToastContainer />
+
+      {/* Preview Modal */}
+      {showPreview && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg text-center">
+            <div ref={billRef} className="space-y-4">
+              <div className="text-center">
+                <img src={logo} alt="RKMG Logo" className="w-24 h-24 mx-auto"/>
+                <h2 className="text-2xl font-bold">Ramakrishna Mission Guwahati</h2>
+                <p>Bishnu Rabha Nagar, Ulubari, Guwahati, Assam 781007</p>
+                <p>Date: {new Date().toLocaleDateString()}</p>
+                <p>Time: {new Date().toLocaleTimeString()}</p>
+              </div>
+              <p className="text-lg text-center font-semibold">
+                Mr./Ms./Mrs. <span className="font-bold">{formData.name}</span> donated Rs. <span className="font-bold">{formData.amount}</span> for <span className="font-bold">{formData.purposeOfDonation}</span>.
+              </p>
+              <p className="text-center">
+                We are taking his/her donation as a blessing and we ensure that we will use that contribution as said. GOD BLESSED <span className="font-bold">{formData.name}</span> and his/her family.
+              </p>
+              <div className="space-y-2 mt-4">
+                <div className="flex justify-between">
+                  <span className="font-medium">ID Type:</span>
+                  <span>{formData.idType}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">ID No:</span>
+                  <span>{formData.idNo}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Contact:</span>
+                  <span>{formData.mobileNo}</span>
+                </div>
+              </div>
+              <div className="flex justify-end mt-6">
+                <div className="text-center">
+                  <p className="text-gray-500">______________________________</p>
+                  <p className="font-medium">Authorized Signature</p>
+                  <p className="text-gray-500">Place Stamp Here</p>
+                </div>
+              </div>
+              <div className="mt-8 text-center">
+                <p className="font-bold">ॐ भूर्भुवः स्वः तत्सवितुर्वरेण्यं भर्गो देवस्य धीमहि धियो यो नः प्रचोदयात्</p>
+              </div>
+            </div>
+            <div className="flex justify-between mt-6">
+              <button onClick={handlePrint} className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
+                Print Bill
+              </button>
+              <button onClick={handleConfirmSubmit} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+                Confirm Submission
+              </button>
+              <button onClick={() => setShowPreview(false)} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">
+                Edit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
