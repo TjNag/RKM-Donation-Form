@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { BsExclamationDiamond } from 'react-icons/bs'; // Import the icon
+import { BsExclamationCircle } from 'react-icons/bs'; // Import the icon
 import logo from '../../assets/logo.png';
 
 const Form = () => {
@@ -210,7 +210,7 @@ const Form = () => {
                 aria-label={field.label} 
               />
               {formErrors[field.id] && (
-                <BsExclamationDiamond className="text-red-500 text-3xl ml-2 animate-pulse" />
+                <BsExclamationCircle className="text-red-500 text-3xl ml-2 animate-pulse" />
               )}
             </div>
             {formErrors[field.id] && (
@@ -238,7 +238,7 @@ const Form = () => {
                 ))}
               </select>
               {formErrors[field.id] && (
-                <BsExclamationDiamond className="text-red-500 text-3xl ml-2 animate-pulse" />
+                <BsExclamationCircle className="text-red-500 text-3xl ml-2 animate-pulse" />
               )}
             </div>
             {formErrors[field.id] && (
