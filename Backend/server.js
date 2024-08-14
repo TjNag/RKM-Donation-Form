@@ -29,13 +29,13 @@ db.connect(err => {
 
 // POST endpoint to handle form submissions
 app.post('/api/submit-form', (req, res) => {
-    const { name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, amount } = req.body;
+    const { name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount } = req.body;
     const sql = `
         INSERT INTO billingrecords
-        (name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, amount, submissionDateTime)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW());
+        (name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount, submissionDateTime)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW());
     `;
-    db.query(sql, [name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, amount], (err, results) => {
+    db.query(sql, [name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount], (err, results) => {
         if (err) {
             console.error('Failed to insert data:', err);
             res.status(500).send('Failed to insert data: ' + err.message);
@@ -102,6 +102,7 @@ app.get('/api/download-records', (req, res) => {
             { header: 'ID Type', key: 'idType', width: 20 },
             { header: 'ID Number', key: 'idNo', width: 25 },
             { header: 'Purpose of Donation', key: 'purposeOfDonation', width: 30 },
+            { header: 'Donation Method', key: 'donationMethod', width: 20 },
             { header: 'Amount', key: 'amount', width: 15 },
             { header: 'Submission DateTime', key: 'submissionDateTime', width: 30 }
         ];
