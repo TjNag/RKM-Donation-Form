@@ -20,6 +20,7 @@ const Form = () => {
     purposeOfDonation: '',
     donationMethod: '',
     amount: '',
+    specifyPurpose: '', // New state for the specified purpose
   };
 
   const initialErrors = {
@@ -35,6 +36,7 @@ const Form = () => {
     purposeOfDonation: '',
     donationMethod: '',
     amount: '',
+    specifyPurpose: '', // Error state for the specified purpose
   };
 
   const [formData, setFormData] = useState(initialState);
@@ -46,6 +48,12 @@ const Form = () => {
     const { name, value } = e.target;
     setFormData(prevState => ({ ...prevState, [name]: value }));
     setFormErrors(prevState => ({ ...prevState, [name]: '' })); // Clear the error when user starts typing
+  };
+
+  const handlePurposeChange = (e) => {
+    const { value } = e.target;
+    setFormData(prevState => ({ ...prevState, purposeOfDonation: value, specifyPurpose: '' }));
+    setFormErrors(prevState => ({ ...prevState, purposeOfDonation: '', specifyPurpose: '' }));
   };
 
   const validateFormData = () => {
@@ -89,7 +97,10 @@ const Form = () => {
       hasError = true;
     }
     if (!formData.purposeOfDonation.trim()) {
-      errors.purposeOfDonation = 'Please enter a valid purpose of donation.';
+      errors.purposeOfDonation = 'Please select a purpose of donation.';
+      hasError = true;
+    } else if (formData.purposeOfDonation.includes('(Please Specify)') && !formData.specifyPurpose.trim()) {
+      errors.specifyPurpose = 'Please specify the purpose of donation.';
       hasError = true;
     }
     if (!formData.donationMethod.trim()) {
@@ -123,13 +134,19 @@ const Form = () => {
 
   const handleConfirmSubmit = async () => {
     if (validateFormData()) {
+      // Finalize the purpose of donation
+      let finalPurpose = formData.purposeOfDonation;
+      if (formData.purposeOfDonation.includes('(Please Specify)')) {
+        finalPurpose = formData.purposeOfDonation.replace('(Please Specify)', `(${formData.specifyPurpose})`);
+      }
+
       try {
         const response = await fetch('http://localhost:8081/api/submit-form', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify(formData),
+          body: JSON.stringify({ ...formData, purposeOfDonation: finalPurpose }),
         });
 
         if (response.ok) {
@@ -189,8 +206,34 @@ const Form = () => {
           { label: 'Email', id: 'email', type: 'email' },
           { label: 'ID Type', id: 'idType', type: 'select', required: true, options: ['Aadhar Card', 'PAN Card', 'Driving Licence', 'Voter Card', 'Ration Card'] },
           { label: 'ID Number', id: 'idNo', type: 'text', required: true },
-          { label: 'Purpose of Donation', id: 'purposeOfDonation', type: 'text', required: true },
-          { label: 'Donation Method', id: 'donationMethod', type: 'select', required: true, options: ['Cash', 'Bank'] }, // New Donation Method field
+          {
+            label: 'Purpose of Donation',
+            id: 'purposeOfDonation',
+            type: 'select',
+            required: true,
+            options: [
+              'Thakur Seva',
+              'Sadhu Seva',
+              'Monthly',
+              'Durga Puja',
+              'Kali Puja',
+              'Saraswati Puja',
+              'Shadoshi Puja',
+              'Tithi - Thakur',
+              'Tithi - Maa',
+              'Tithi - Swamiji',
+              'Development Fund (Please Specify)',
+              'Permanent Fund (Please Specify)',
+              'Others (Please Specify)',
+            ],
+          },
+          {
+            label: 'Donation Method',
+            id: 'donationMethod',
+            type: 'select',
+            required: true,
+            options: ['Cash', 'Bank'],
+          },
           { label: 'Amount', id: 'amount', type: 'number', required: true },
         ].map(field => field.type !== 'select' ? (
           <div key={field.id} className="flex flex-col">
@@ -227,7 +270,7 @@ const Form = () => {
                 id={field.id} 
                 name={field.id} 
                 value={formData[field.id]} 
-                onChange={handleChange} 
+                onChange={field.id === 'purposeOfDonation' ? handlePurposeChange : handleChange} 
                 className={`w-full p-2 border ${formErrors[field.id] ? 'border-red-500' : 'border-gray-300'} rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700`} 
                 required={field.required} 
                 aria-label={field.label}
@@ -243,6 +286,31 @@ const Form = () => {
             </div>
             {formErrors[field.id] && (
               <span className="text-red-500 text-sm mt-1">{formErrors[field.id]}</span>
+            )}
+            {field.id === 'purposeOfDonation' && formData.purposeOfDonation.includes('(Please Specify)') && (
+              <div className="flex flex-col mt-2">
+                <label htmlFor="specifyPurpose" className="mb-2 font-medium flex items-center">
+                  Please Specify
+                </label>
+                <div className="flex items-center">
+                  <input 
+                    type="text" 
+                    id="specifyPurpose" 
+                    name="specifyPurpose" 
+                    value={formData.specifyPurpose} 
+                    onChange={handleChange} 
+                    placeholder="Enter the specific purpose" 
+                    className={`w-full p-2 border ${formErrors.specifyPurpose ? 'border-red-500' : 'border-gray-300'} rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700`} 
+                    aria-label="Specify Purpose"
+                  />
+                  {formErrors.specifyPurpose && (
+                    <BsExclamationCircle className="text-red-500 text-3xl ml-2 animate-pulse" />
+                  )}
+                </div>
+                {formErrors.specifyPurpose && (
+                  <span className="text-red-500 text-sm mt-1">{formErrors.specifyPurpose}</span>
+                )}
+              </div>
             )}
           </div>
         ))}
@@ -270,7 +338,7 @@ const Form = () => {
                 <p>Time: {new Date().toLocaleTimeString()}</p>
               </div>
               <p className="text-lg text-center font-semibold">
-                Mr./Ms./Mrs. <span className="font-bold">{formData.name}</span> donated Rs. <span className="font-bold">{formData.amount}</span> for <span className="font-bold">{formData.purposeOfDonation}</span> via <span className="font-bold">{formData.donationMethod}</span>.
+                Mr./Ms./Mrs. <span className="font-bold">{formData.name}</span> donated Rs. <span className="font-bold">{formData.amount}</span> for <span className="font-bold">{formData.purposeOfDonation.includes('(Please Specify)') ? formData.purposeOfDonation.replace('(Please Specify)', `(${formData.specifyPurpose})`) : formData.purposeOfDonation}</span> via <span className="font-bold">{formData.donationMethod}</span>.
               </p>
               <p className="text-center">
                 We are taking his/her donation as a blessing and we ensure that we will use that contribution as said. GOD BLESSED <span className="font-bold">{formData.name}</span> and his/her family.
