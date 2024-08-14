@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { BsExclamationDiamond } from 'react-icons/bs'; // Import the icon
 import logo from '../../assets/logo.png';
 
 const Form = () => {
@@ -17,48 +18,137 @@ const Form = () => {
     idType: '',
     idNo: '',
     purposeOfDonation: '',
+    donationMethod: '',
+    amount: '',
+  };
+
+  const initialErrors = {
+    name: '',
+    address: '',
+    city: '',
+    state: '',
+    pinCode: '',
+    mobileNo: '',
+    altMobileNo: '',
+    email: '',
+    idNo: '',
+    purposeOfDonation: '',
+    donationMethod: '',
     amount: '',
   };
 
   const [formData, setFormData] = useState(initialState);
+  const [formErrors, setFormErrors] = useState(initialErrors);
   const [showPreview, setShowPreview] = useState(false);
-  const billRef = useRef(null); // Ref for the bill section
+  const billRef = useRef(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prevState => ({ ...prevState, [name]: value }));
+    setFormErrors(prevState => ({ ...prevState, [name]: '' })); // Clear the error when user starts typing
+  };
+
+  const validateFormData = () => {
+    let errors = { ...initialErrors };
+    let hasError = false;
+
+    if (!formData.name.trim()) {
+      errors.name = 'Please enter a valid name.';
+      hasError = true;
+    }
+    if (!formData.address.trim()) {
+      errors.address = 'Please enter a valid address.';
+      hasError = true;
+    }
+    if (!formData.city.trim()) {
+      errors.city = 'Please enter a valid city.';
+      hasError = true;
+    }
+    if (!formData.state.trim()) {
+      errors.state = 'Please enter a valid state.';
+      hasError = true;
+    }
+    if (!/^\d{6}$/.test(formData.pinCode)) {
+      errors.pinCode = 'Please enter a valid 6-digit pin code.';
+      hasError = true;
+    }
+    if (!/^\d{10}$/.test(formData.mobileNo)) {
+      errors.mobileNo = 'Please enter a valid 10-digit mobile number.';
+      hasError = true;
+    }
+    if (formData.altMobileNo && !/^\d{10}$/.test(formData.altMobileNo)) {
+      errors.altMobileNo = 'Please enter a valid 10-digit alternate mobile number.';
+      hasError = true;
+    }
+    if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
+      errors.email = 'Please enter a valid email address.';
+      hasError = true;
+    }
+    if (!formData.idNo.trim()) {
+      errors.idNo = 'Please enter a valid ID number.';
+      hasError = true;
+    }
+    if (!formData.purposeOfDonation.trim()) {
+      errors.purposeOfDonation = 'Please enter a valid purpose of donation.';
+      hasError = true;
+    }
+    if (!formData.donationMethod.trim()) {
+      errors.donationMethod = 'Please select a donation method.';
+      hasError = true;
+    }
+    if (parseFloat(formData.amount) <= 0) {
+      errors.amount = 'Donation amount should be greater than zero.';
+      hasError = true;
+    }
+
+    setFormErrors(errors);
+
+    if (hasError) {
+      const firstErrorField = Object.keys(errors).find(key => errors[key]);
+      if (firstErrorField) {
+        document.getElementById(firstErrorField)?.focus();
+      }
+      toast.error('Please correct the highlighted errors.');
+    }
+
+    return !hasError;
   };
 
   const handleGenerateBill = (e) => {
     e.preventDefault();
-    setShowPreview(true); // Show preview without saving to database
+    if (validateFormData()) {
+      setShowPreview(true); // Show preview without saving to database
+    }
   };
 
   const handleConfirmSubmit = async () => {
-    try {
-      const response = await fetch('http://localhost:8081/api/submit-form', { // Ensure the URL and port are correct
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
+    if (validateFormData()) {
+      try {
+        const response = await fetch('http://localhost:8081/api/submit-form', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(formData),
+        });
 
-      if (response.ok) {
-        toast.success('Submission Successful!');
-        setShowPreview(false); // Hide the preview after successful submission
-        setTimeout(() => window.location.reload(), 1000); // Refresh the page after 1 second
-      } else {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Failed to submit form');
+        if (response.ok) {
+          toast.success('Submission Successful!');
+          setShowPreview(false);
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          const errorText = await response.text();
+          throw new Error(errorText || 'Failed to submit form');
+        }
+      } catch (error) {
+        toast.error(error.message || 'An error occurred!');
       }
-    } catch (error) {
-      toast.error(error.message || 'An error occurred!');
     }
   };
 
   const handleClear = () => {
     setFormData(initialState);
+    setFormErrors(initialErrors);
     setShowPreview(false);
   };
 
@@ -100,21 +190,60 @@ const Form = () => {
           { label: 'ID Type', id: 'idType', type: 'select', required: true, options: ['Aadhar Card', 'PAN Card', 'Driving Licence', 'Voter Card', 'Ration Card'] },
           { label: 'ID Number', id: 'idNo', type: 'text', required: true },
           { label: 'Purpose of Donation', id: 'purposeOfDonation', type: 'text', required: true },
+          { label: 'Donation Method', id: 'donationMethod', type: 'select', required: true, options: ['Cash', 'Bank'] }, // New Donation Method field
           { label: 'Amount', id: 'amount', type: 'number', required: true },
         ].map(field => field.type !== 'select' ? (
           <div key={field.id} className="flex flex-col">
-            <label htmlFor={field.id} className="mb-2 font-medium">{field.label}{field.required && <span className="text-red-400">*</span>}</label>
-            <input type={field.type} id={field.id} name={field.id} value={formData[field.id]} onChange={handleChange} placeholder={`Enter ${field.label}`} className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700" required={field.required} />
+            <label htmlFor={field.id} className="mb-2 font-medium flex items-center">
+              {field.label}{field.required && <span className="text-red-400">*</span>}
+            </label>
+            <div className="flex items-center">
+              <input 
+                type={field.type} 
+                id={field.id} 
+                name={field.id} 
+                value={formData[field.id]} 
+                onChange={handleChange} 
+                placeholder={`Enter ${field.label}`} 
+                className={`w-full p-2 border ${formErrors[field.id] ? 'border-red-500' : 'border-gray-300'} rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700`} 
+                required={field.required} 
+                aria-label={field.label} 
+              />
+              {formErrors[field.id] && (
+                <BsExclamationDiamond className="text-red-500 text-3xl ml-2 animate-pulse" />
+              )}
+            </div>
+            {formErrors[field.id] && (
+              <span className="text-red-500 text-sm mt-1">{formErrors[field.id]}</span>
+            )}
           </div>
         ) : (
           <div key={field.id} className="flex flex-col">
-            <label htmlFor={field.id} className="mb-2 font-medium">{field.label}<span className="text-red-400">*</span></label>
-            <select id={field.id} name={field.id} value={formData[field.id]} onChange={handleChange} className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700" required={field.required}>
-              <option value="">Select</option>
-              {field.options.map(option => (
-                <option key={option} value={option}>{option}</option>
-              ))}
-            </select>
+            <label htmlFor={field.id} className="mb-2 font-medium flex items-center">
+              {field.label}<span className="text-red-400">*</span>
+            </label>
+            <div className="flex items-center">
+              <select 
+                id={field.id} 
+                name={field.id} 
+                value={formData[field.id]} 
+                onChange={handleChange} 
+                className={`w-full p-2 border ${formErrors[field.id] ? 'border-red-500' : 'border-gray-300'} rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700`} 
+                required={field.required} 
+                aria-label={field.label}
+              >
+                <option value="">Select</option>
+                {field.options.map(option => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+              {formErrors[field.id] && (
+                <BsExclamationDiamond className="text-red-500 text-3xl ml-2 animate-pulse" />
+              )}
+            </div>
+            {formErrors[field.id] && (
+              <span className="text-red-500 text-sm mt-1">{formErrors[field.id]}</span>
+            )}
           </div>
         ))}
         <div className="flex justify-between mt-6">
@@ -141,7 +270,7 @@ const Form = () => {
                 <p>Time: {new Date().toLocaleTimeString()}</p>
               </div>
               <p className="text-lg text-center font-semibold">
-                Mr./Ms./Mrs. <span className="font-bold">{formData.name}</span> donated Rs. <span className="font-bold">{formData.amount}</span> for <span className="font-bold">{formData.purposeOfDonation}</span>.
+                Mr./Ms./Mrs. <span className="font-bold">{formData.name}</span> donated Rs. <span className="font-bold">{formData.amount}</span> for <span className="font-bold">{formData.purposeOfDonation}</span> via <span className="font-bold">{formData.donationMethod}</span>.
               </p>
               <p className="text-center">
                 We are taking his/her donation as a blessing and we ensure that we will use that contribution as said. GOD BLESSED <span className="font-bold">{formData.name}</span> and his/her family.
@@ -168,7 +297,7 @@ const Form = () => {
                 </div>
               </div>
               <div className="mt-8 text-center">
-                <p className="font-bold">ॐ भूर्भुवः स्वः तत्सवितुर्वरेण्यं भर्गो देवस्य धीमहि धियो यो नः प्रचोदयात्</p>
+                <p className="font-bold">ॐ भूर्भुवः स्वः तत्सavitur vareṇyaṃ bhargo devasya dhīmahi dhiyo yo naḥ pracodayāt</p>
               </div>
             </div>
             <div className="flex justify-between mt-6">
