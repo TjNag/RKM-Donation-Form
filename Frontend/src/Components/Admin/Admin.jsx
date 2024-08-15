@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { toast } from 'react-toastify';
+import { toast, ToastContainer } from 'react-toastify';
+import { FaTrash, FaPrint, FaSync } from 'react-icons/fa';
+import { saveAs } from 'file-saver';
 import 'react-toastify/dist/ReactToastify.css';
 import 'tailwindcss/tailwind.css';
-import { FaTrash, FaPrint } from 'react-icons/fa';
+import logo from '../../assets/logo.png'; // Make sure the path is correct according to your project structure
 
 const Admin = () => {
     const [records, setRecords] = useState([]);
@@ -13,7 +15,6 @@ const Admin = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [selectedRecords, setSelectedRecords] = useState([]);
 
     const columns = [
         { label: 'Name', value: 'name' },
@@ -31,44 +32,26 @@ const Admin = () => {
         { label: 'Amount', value: 'amount' },
     ];
 
+    useEffect(() => {
+        if (isLoggedIn) {
+            fetchRecords();
+        }
+    }, [isLoggedIn, searchColumn, searchTerm]);
+
     const fetchRecords = async () => {
         setIsLoading(true);
         try {
-            const { data } = await axios.get('http://localhost:8081/api/records', {
+            const { data } = await axios.get(`http://localhost:8081/api/records`, {
                 params: {
                     column: searchColumn,
                     value: searchTerm,
                 },
             });
             setRecords(data);
-            setIsLoading(false);
         } catch (error) {
-            console.error('Failed to fetch records:', error);
             toast.error('Failed to fetch records');
-            setIsLoading(false);
         }
-    };
-
-    const downloadExcel = async () => {
-        try {
-            const response = await axios.get('http://localhost:8081/api/download-records', {
-                params: {
-                    column: searchColumn,
-                    value: searchTerm,
-                },
-                responseType: 'blob',
-            });
-            const url = window.URL.createObjectURL(new Blob([response.data]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', 'records.xlsx');
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-        } catch (error) {
-            console.error('Failed to download Excel file:', error);
-            toast.error('Failed to download Excel file');
-        }
+        setIsLoading(false);
     };
 
     const handleDelete = async (id) => {
@@ -78,109 +61,39 @@ const Admin = () => {
                 setRecords(records.filter(record => record.id !== id));
                 toast.success('Record deleted successfully');
             } catch (error) {
-                console.error('Failed to delete record:', error);
                 toast.error('Failed to delete record');
             }
         }
     };
 
-    const handlePrint = (record) => {
-        const printContents = `
-            <div style="padding: 20px; font-family: Arial, sans-serif;">
-                <div style="text-align: center;">
-                    <img src="${window.location.origin}/path-to-your-logo.png" alt="Logo" style="width: 100px;"/>
-                    <h2>Ramakrishna Mission Guwahati</h2>
-                    <p>Bishnu Rabha Nagar, Ulubari, Guwahati, Assam 781007</p>
-                    <h3>${record.purposeOfDonation} Donation Receipt</h3>
-                </div>
-                <hr style="margin: 20px 0;">
-                <div style="margin-bottom: 20px;">
-                    <p><strong>Receipt #:</strong> ___________________</p>
-                    <p><strong>Date:</strong> ${new Date(record.submissionDateTime).toLocaleDateString()}</p>
-                </div>
-                <div style="margin-bottom: 20px;">
-                    <p><strong>Amount:</strong> Rs. ${record.amount}</p>
-                    <p><strong>Donation Type:</strong> ${record.purposeOfDonation}</p>
-                </div>
-                <div style="margin-bottom: 20px;">
-                    <p><strong>Donor Name:</strong> ${record.name}</p>
-                    <p><strong>Contact:</strong> ${record.mobileNo}</p>
-                    <p><strong>ID Type:</strong> ${record.idType}</p>
-                    <p><strong>ID No:</strong> ${record.idNo}</p>
-                </div>
-                <div style="text-align: right; margin-top: 50px;">
-                    <p>______________________________</p>
-                    <p>Authorized Signature</p>
-                    <p>Place Stamp Here</p>
-                </div>
-                <div style="text-align: center; margin-top: 30px;">
-                    <p><strong>ॐ भूर्भुवः स्वः तत्सवितुर्वरेण्यं भर्गो देवस्य धीमहि धियो यो नः प्रचोदयात्</strong></p>
-                </div>
-            </div>
-        `;
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Print Receipt</title>
-                </head>
-                <body>
-                    ${printContents}
-                </body>
-            </html>
-        `);
-        printWindow.document.close();
-        printWindow.print();
-        printWindow.close();
-    };
-
-    const handleSelectRecord = (id) => {
-        setSelectedRecords(prev => {
-            if (prev.includes(id)) {
-                return prev.filter(recordId => recordId !== id);
-            } else {
-                return [...prev, id];
-            }
-        });
-    };
-
-    const handleDeleteSelected = async () => {
-        if (selectedRecords.length === 0) {
-            toast.warn('No records selected');
-            return;
-        }
-        if (window.confirm('Are you sure you want to delete selected records?')) {
-            try {
-                await axios.delete('http://localhost:8081/api/delete-records', {
-                    data: { ids: selectedRecords }
-                });
-                setRecords(records.filter(record => !selectedRecords.includes(record.id)));
-                setSelectedRecords([]);
-                toast.success('Selected records deleted successfully');
-            } catch (error) {
-                console.error('Failed to delete selected records:', error);
-                toast.error('Failed to delete selected records');
-            }
-        }
-    };
-
-    const handleLoadData = () => {
-        fetchRecords();
-    };
-
-    useEffect(() => {
-        if (isLoggedIn) {
-            fetchRecords();
-        }
-    }, [isLoggedIn, searchColumn, searchTerm]);
-
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
-        if (username === 'admin' && password === 'admin') {
-            setIsLoggedIn(true);
-        } else {
-            toast.error('Invalid credentials');
+        try {
+            const response = await axios.post(`http://localhost:8081/api/login`, { username, password });
+            if (response.data.success) {
+                setIsLoggedIn(true);
+                toast.success('Logged in successfully');
+            } else {
+                toast.error('Invalid credentials');
+            }
+        } catch (error) {
+            toast.error('Login failed, please try again');
         }
+    };
+
+    const handleDownloadCsv = () => {
+        const csvRows = [];
+        const headers = columns.map(col => col.label).join(',');
+        csvRows.push(headers);
+
+        records.forEach(record => {
+            const values = columns.map(col => `"${record[col.value]}"`).join(',');
+            csvRows.push(values);
+        });
+
+        const csvString = csvRows.join('\n');
+        const blob = new Blob([csvString], { type: 'text/csv' });
+        saveAs(blob, 'records.csv');
     };
 
     if (!isLoggedIn) {
@@ -188,33 +101,24 @@ const Admin = () => {
             <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
                 <div className="bg-white p-8 rounded-lg shadow-lg max-w-sm w-full">
                     <h2 className="text-2xl font-semibold text-center mb-6">Admin Login</h2>
-                    <form onSubmit={handleLogin} className="space-y-4">
-                        <div>
-                            <label htmlFor="username" className="block font-medium mb-2">Username</label>
-                            <input
-                                type="text"
-                                id="username"
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                                required
-                            />
-                        </div>
-                        <div>
-                            <label htmlFor="password" className="block font-medium mb-2">Password</label>
-                            <input
-                                type="password"
-                                id="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-md"
-                                required
-                            />
-                        </div>
-                        <button
-                            type="submit"
-                            className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition duration-150"
-                        >
+                    <form onSubmit={handleLogin}>
+                        <input
+                            type="text"
+                            placeholder="Username"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            required
+                            className="mb-4 p-2 w-full border rounded"
+                        />
+                        <input
+                            type="password"
+                            placeholder="Password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            className="mb-4 p-2 w-full border rounded"
+                        />
+                        <button type="submit" className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-700">
                             Login
                         </button>
                     </form>
@@ -223,120 +127,69 @@ const Admin = () => {
         );
     }
 
-    if (isLoading) return <div className="text-center">Loading...</div>;
-
     return (
-        <div className="container mx-auto px-4">
-            <h1 className="text-xl font-semibold text-center my-4">Admin Dashboard - Records Management</h1>
-
-            {/* Search Input */}
-            <div className="mb-4 flex items-center justify-between">
-                <select 
+        <div className="container mx-auto p-4">
+            <div className="flex justify-center items-center mb-4">
+                <img src={logo} alt="Logo" className="w-24 h-24" />
+            </div>
+            <h1 className="text-2xl font-semibold text-center mb-4">Admin Dashboard</h1>
+            <div className="flex items-center justify-center space-x-2 mb-4">
+                <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search..."
+                    className="border p-2 rounded w-full"
+                    onKeyPress={(e) => e.key === 'Enter' && fetchRecords()}
+                />
+                <select
                     value={searchColumn}
-                    onChange={e => setSearchColumn(e.target.value)}
-                    className="px-4 py-2 border border-gray-300 rounded-md"
+                    onChange={(e) => setSearchColumn(e.target.value)}
+                    className="border p-2 rounded"
                 >
-                    {columns.map(col => (
-                        <option key={col.value} value={col.value}>{col.label}</option>
+                    {columns.map(column => (
+                        <option key={column.value} value={column.value}>{column.label}</option>
                     ))}
                 </select>
-                <input 
-                    type="text" 
-                    placeholder={`Search by ${searchColumn.replace(/([A-Z])/g, ' $1')}`}
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="ml-4 px-4 py-2 border border-gray-300 rounded-md w-full"
-                />
-                <button 
-                    onClick={downloadExcel}
-                    className="ml-4 px-4 py-2 bg-blue-500 text-white rounded-md"
-                >
-                    Download Excel
+                <button onClick={fetchRecords} className="bg-teal-500 hover:bg-teal-700 text-white p-2 rounded">
+                    <FaSync />
                 </button>
-                <button 
-                    onClick={handleLoadData}
-                    className="ml-4 px-4 py-2 bg-green-500 text-white rounded-md"
-                >
-                    Load Data
+                <button onClick={handleDownloadCsv} className="bg-green-500 hover:bg-green-700 text-white p-2 rounded">
+                    Download
                 </button>
             </div>
-
-            <div className="mb-4">
-                <button 
-                    onClick={handleDeleteSelected}
-                    className="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded"
-                >
-                    Delete Selected
-                </button>
-            </div>
-
-            {records.length > 0 ? (
-                <div className="overflow-x-auto">
-                    <table className="min-w-full bg-white divide-y divide-gray-300">
-                        <thead className="bg-gray-700 text-white">
-                            <tr>
-                                <th className="px-6 py-3">
-                                    <input
-                                        type="checkbox"
-                                        onChange={(e) => {
-                                            if (e.target.checked) {
-                                                setSelectedRecords(records.map(record => record.id));
-                                            } else {
-                                                setSelectedRecords([]);
-                                            }
-                                        }}
-                                        checked={selectedRecords.length === records.length}
-                                    />
-                                </th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Name</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Mobile Number</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">ID Type</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">ID Number</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Purpose of Donation</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Amount</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Submission Date</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="text-gray-700">
-                            {records.map((record, index) => (
-                                <tr key={index} className="bg-gray-100">
-                                    <td className="px-6 py-4">
-                                        <input
-                                            type="checkbox"
-                                            onChange={() => handleSelectRecord(record.id)}
-                                            checked={selectedRecords.includes(record.id)}
-                                        />
-                                    </td>
-                                    <td className="px-6 py-4">{record.name}</td>
-                                    <td className="px-6 py-4">{record.mobileNo}</td>
-                                    <td className="px-6 py-4">{record.idType}</td>
-                                    <td className="px-6 py-4">{record.idNo}</td>
-                                    <td className="px-6 py-4">{record.purposeOfDonation}</td>
-                                    <td className="px-6 py-4">{record.amount}</td>
-                                    <td className="px-6 py-4">{new Date(record.submissionDateTime).toLocaleString()}</td>
-                                    <td className="px-6 py-4 space-x-2">
-                                        <button
-                                            onClick={() => handleDelete(record.id)}
-                                            className="bg-red-500 hover:bg-red-600 text-white py-1 px-2 rounded flex items-center justify-center"
-                                        >
-                                            <FaTrash />
-                                        </button>
-                                        <button
-                                            onClick={() => handlePrint(record)}
-                                            className="bg-blue-500 hover:bg-blue-600 text-white py-1 px-2 rounded flex items-center justify-center"
-                                        >
-                                            <FaPrint />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+            {isLoading ? (
+                <p className="text-center">Loading...</p>
             ) : (
-                <div className="text-center text-xl">No records found.</div>
+                <table className="min-w-full table-auto text-center">
+                    <thead className="bg-gradient-to-r from-teal-500 to-green-500 text-white">
+                        <tr>
+                            {columns.map(column => (
+                                <th key={column.value} className="px-4 py-2">{column.label}</th>
+                            ))}
+                            <th className="px-4 py-2">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {records.map(record => (
+                            <tr key={record.id} className="bg-white border-b hover:bg-gray-100">
+                                {columns.map(column => (
+                                    <td key={column.value} className="px-4 py-2">{record[column.value]}</td>
+                                ))}
+                                <td className="px-4 py-2 flex justify-center space-x-2">
+                                    <button onClick={() => console.log('Print functionality not implemented')} className="bg-green-500 hover:bg-green-700 text-white p-1 rounded">
+                                        <FaPrint />
+                                    </button>
+                                    <button onClick={() => handleDelete(record.id)} className="bg-red-500 hover:bg-red-700 text-white p-1 rounded">
+                                        <FaTrash />
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             )}
+            <ToastContainer />
         </div>
     );
 };

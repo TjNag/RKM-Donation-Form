@@ -2,8 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql');
 const cors = require('cors');
+const bcrypt = require('bcrypt');
 const ExcelJS = require('exceljs');
-
 const app = express();
 const PORT = process.env.PORT || 8081;
 
@@ -18,13 +18,52 @@ const db = mysql.createConnection({
     database: process.env.DB_NAME || 'rkmg_offline_form'
 });
 
-// Handle MySQL connection errors and success
 db.connect(err => {
     if (err) {
         console.error('Error connecting to the MySQL database:', err);
         return;
     }
     console.log('Successfully connected to the MySQL database.');
+});
+
+// Login Endpoint
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    const sql = 'SELECT password FROM admin_users WHERE username = ?';
+    db.query(sql, [username], (err, results) => {
+        if (err) {
+            console.error('Error fetching user:', err);
+            return res.status(500).send('Database error');
+        }
+        if (results.length > 0) {
+            bcrypt.compare(password, results[0].password, (err, isMatch) => {
+                if (err) {
+                    return res.status(500).send('Authentication error');
+                }
+                if (isMatch) {
+                    res.json({ success: true });
+                } else {
+                    res.status(401).send('Invalid credentials');
+                }
+            });
+        } else {
+            res.status(404).send('User not found');
+        }
+    });
+});
+
+// Add user endpoint
+app.post('/api/add-user', (req, res) => {
+    const { username, password } = req.body;
+    const hashedPassword = bcrypt.hashSync(password, 10);
+    const sql = 'INSERT INTO admin_users (username, password) VALUES (?, ?)';
+    db.query(sql, [username, hashedPassword], (err, result) => {
+        if (err) {
+            console.error('Failed to add user:', err);
+            return res.status(500).send('Failed to add user');
+        }
+        res.json({ success: true, message: 'User added successfully' });
+    });
 });
 
 // POST endpoint to handle form submissions
@@ -38,8 +77,7 @@ app.post('/api/submit-form', (req, res) => {
     db.query(sql, [name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount], (err, results) => {
         if (err) {
             console.error('Failed to insert data:', err);
-            res.status(500).send('Failed to insert data: ' + err.message);
-            return;
+            return res.status(500).send('Failed to insert data');
         }
         res.status(200).send('Data submitted successfully');
     });
@@ -49,28 +87,30 @@ app.post('/api/submit-form', (req, res) => {
 app.get('/api/records', (req, res) => {
     const { column, value } = req.query;
     let sql = 'SELECT * FROM billingrecords WHERE 1=1';
-
-    const filters = [];
     if (column && value) {
         sql += ` AND ${mysql.escapeId(column)} LIKE ?`;
-        filters.push(`%${value}%`);
+        db.query(sql, [`%${value}%`], (err, results) => {
+            if (err) {
+                console.error('Failed to fetch records:', err);
+                return res.status(500).send('Failed to fetch records');
+            }
+            res.json(results);
+        });
+    } else {
+        db.query(sql, (err, results) => {
+            if (err) {
+                console.error('Failed to fetch records:', err);
+                return res.status(500).send('Failed to fetch records');
+            }
+            res.json(results);
+        });
     }
-
-    db.query(sql, filters, (err, results) => {
-        if (err) {
-            console.error('Failed to fetch records:', err);
-            res.status(500).send('Failed to fetch records: ' + err.message);
-            return;
-        }
-        res.json(results);
-    });
 });
 
 // GET endpoint to download records as an Excel file
-app.get('/api/download-records', (req, res) => {
+app.get('/api/download-records', async (req, res) => {
     const { column, value } = req.query;
     let sql = 'SELECT * FROM billingrecords WHERE 1=1';
-
     const filters = [];
     if (column && value) {
         sql += ` AND ${mysql.escapeId(column)} LIKE ?`;
@@ -80,15 +120,11 @@ app.get('/api/download-records', (req, res) => {
     db.query(sql, filters, async (err, results) => {
         if (err) {
             console.error('Failed to fetch records:', err);
-            res.status(500).send('Failed to fetch records: ' + err.message);
-            return;
+            return res.status(500).send('Failed to fetch records');
         }
 
-        // Create a new workbook and worksheet
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Records');
-
-        // Add column headers
         worksheet.columns = [
             { header: 'Name', key: 'name', width: 30 },
             { header: 'Address', key: 'address', width: 30 },
@@ -106,16 +142,12 @@ app.get('/api/download-records', (req, res) => {
             { header: 'Amount', key: 'amount', width: 15 },
             { header: 'Submission DateTime', key: 'submissionDateTime', width: 30 }
         ];
-
-        // Add rows to the worksheet
         results.forEach(record => {
             worksheet.addRow(record);
         });
 
-        // Set the response headers and send the Excel file
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', 'attachment; filename=records.xlsx');
-
+        res.setHeader('Content-Disposition', 'attachment; filename="records.xlsx"');
         await workbook.xlsx.write(res);
         res.end();
     });
@@ -128,8 +160,7 @@ app.delete('/api/delete-record/:id', (req, res) => {
     db.query(sql, [id], (err, results) => {
         if (err) {
             console.error('Failed to delete record:', err);
-            res.status(500).send('Failed to delete record: ' + err.message);
-            return;
+            return res.status(500).send('Failed to delete record');
         }
         res.status(200).send('Record deleted successfully');
     });
@@ -146,8 +177,7 @@ app.delete('/api/delete-records', (req, res) => {
     db.query(sql, [ids], (err, results) => {
         if (err) {
             console.error('Failed to delete records:', err);
-            res.status(500).send('Failed to delete records: ' + err.message);
-            return;
+            return res.status(500).send('Failed to delete records');
         }
         res.status(200).send('Records deleted successfully');
     });
