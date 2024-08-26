@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
-import { FaTrash, FaPrint, FaSync } from 'react-icons/fa';
+import { FaTrash, FaPrint, FaSync, FaEdit } from 'react-icons/fa';
 import { saveAs } from 'file-saver';
 import 'react-toastify/dist/ReactToastify.css';
 import 'tailwindcss/tailwind.css';
 import logo from '../../assets/logo.png'; // Make sure the path is correct according to your project structure
+import Modal from 'react-modal';
 
 const Admin = () => {
     const [records, setRecords] = useState([]);
@@ -15,6 +16,14 @@ const Admin = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
+    const [isModalOpen, setIsModalOpen] = useState(false); // Modal open state
+    const [modalData, setModalData] = useState({
+        newUsername: '',
+        newPassword: '',
+        userType: 'user', // Default user type
+        isUpdate: false, // Flag to distinguish between add and update
+        updateUser: '', // The user being updated
+    });
 
     const columns = [
         { label: 'Name', value: 'name' },
@@ -30,7 +39,26 @@ const Admin = () => {
         { label: 'ID Number', value: 'idNo' },
         { label: 'Purpose of Donation', value: 'purposeOfDonation' },
         { label: 'Amount', value: 'amount' },
+        { label: 'User Type', value: 'userType' }, // Added userType column
     ];
+
+    const handlePrint = () => {
+        const printContents = document.body.innerHTML;
+        const originalContents = document.body.innerHTML;
+
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>Print Bill</title>
+            </head>
+            <body onload="window.print();window.close();">
+              ${printContents}
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+    };
 
     useEffect(() => {
         if (isLoggedIn) {
@@ -96,6 +124,36 @@ const Admin = () => {
         saveAs(blob, 'records.csv');
     };
 
+    const openModal = () => {
+        setModalData({ newUsername: '', newPassword: '', userType: 'user', isUpdate: false, updateUser: '' });
+        setIsModalOpen(true);
+    };
+
+    const handleModalSubmit = async (e) => {
+        e.preventDefault();
+        const { newUsername, newPassword, userType, isUpdate, updateUser } = modalData;
+        try {
+            if (isUpdate) {
+                // Update user data
+                await axios.post(`http://localhost:8081/api/update-user`, { username: updateUser, newUsername, newPassword, userType });
+                toast.success('User updated successfully');
+            } else {
+                // Add new user
+                await axios.post(`http://localhost:8081/api/add-user`, { username: newUsername, password: newPassword, userType });
+                toast.success('User added successfully');
+            }
+            setIsModalOpen(false);
+            fetchRecords(); // Refresh the list
+        } catch (error) {
+            toast.error('Failed to save user data');
+        }
+    };
+
+    const openUpdateModal = (user) => {
+        setModalData({ newUsername: user.username, newPassword: '', userType: user.userType, isUpdate: true, updateUser: user.username });
+        setIsModalOpen(true);
+    };
+
     if (!isLoggedIn) {
         return (
             <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
@@ -157,6 +215,9 @@ const Admin = () => {
                 <button onClick={handleDownloadCsv} className="bg-green-500 hover:bg-green-700 text-white p-2 rounded">
                     Download
                 </button>
+                <button onClick={openModal} className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded">
+                    Add User
+                </button>
             </div>
             {isLoading ? (
                 <p className="text-center">Loading...</p>
@@ -177,7 +238,7 @@ const Admin = () => {
                                     <td key={column.value} className="px-4 py-2">{record[column.value]}</td>
                                 ))}
                                 <td className="px-4 py-2 flex justify-center space-x-2">
-                                    <button onClick={() => console.log('Print functionality not implemented')} className="bg-green-500 hover:bg-green-700 text-white p-1 rounded">
+                                    <button onClick={handlePrint} className="bg-green-500 hover:bg-green-700 text-white p-1 rounded">
                                         <FaPrint />
                                     </button>
                                     <button onClick={() => handleDelete(record.id)} className="bg-red-500 hover:bg-red-700 text-white p-1 rounded">
@@ -189,6 +250,59 @@ const Admin = () => {
                     </tbody>
                 </table>
             )}
+
+            {/* Modal for adding/updating user */}
+            <Modal
+                isOpen={isModalOpen}
+                onRequestClose={() => setIsModalOpen(false)}
+                contentLabel="Add/Update User"
+                ariaHideApp={false}
+                className="modal bg-white rounded-lg p-6 max-w-lg mx-auto mt-24 shadow-lg"
+            >
+                <h2 className="text-2xl font-semibold text-center mb-4">{modalData.isUpdate ? 'Update User' : 'Add New User'}</h2>
+                <form onSubmit={handleModalSubmit}>
+                    <div className="mb-4">
+                        <label className="block mb-2">Username</label>
+                        <input
+                            type="text"
+                            value={modalData.newUsername}
+                            onChange={(e) => setModalData({ ...modalData, newUsername: e.target.value })}
+                            required
+                            className="w-full p-2 border rounded"
+                        />
+                    </div>
+                    <div className="mb-4">
+                        <label className="block mb-2">Password</label>
+                        <input
+                            type="password"
+                            value={modalData.newPassword}
+                            onChange={(e) => setModalData({ ...modalData, newPassword: e.target.value })}
+                            required
+                            className="w-full p-2 border rounded"
+                        />
+                    </div>
+                    <div className="mb-4">
+                        <label className="block mb-2">User Type</label>
+                        <select
+                            value={modalData.userType}
+                            onChange={(e) => setModalData({ ...modalData, userType: e.target.value })}
+                            className="w-full p-2 border rounded"
+                        >
+                            <option value="admin">Admin</option>
+                            <option value="user">User</option>
+                        </select>
+                    </div>
+                    <div className="flex justify-end space-x-2">
+                        <button type="button" onClick={() => setIsModalOpen(false)} className="bg-gray-500 hover:bg-gray-700 text-white py-2 px-4 rounded">
+                            Cancel
+                        </button>
+                        <button type="submit" className="bg-blue-500 hover:bg-blue-700 text-white py-2 px-4 rounded">
+                            {modalData.isUpdate ? 'Update User' : 'Add User'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
             <ToastContainer />
         </div>
     );

@@ -1,11 +1,15 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { BsExclamationCircle } from 'react-icons/bs'; // Import the icon
+import { BsExclamationCircle } from 'react-icons/bs';
+import Modal from 'react-modal';
 import logo from '../../assets/logo.png';
+
+Modal.setAppElement('#root');
 
 const Form = () => {
   const initialState = {
+    submittedby_user: '',
     name: '',
     address: '',
     district: '',
@@ -20,10 +24,11 @@ const Form = () => {
     purposeOfDonation: '',
     donationMethod: '',
     amount: '',
-    specifyPurpose: '', // New state for the specified purpose
+    specifyPurpose: '',
   };
 
   const initialErrors = {
+    submittedby_user: '',
     name: '',
     address: '',
     city: '',
@@ -36,24 +41,63 @@ const Form = () => {
     purposeOfDonation: '',
     donationMethod: '',
     amount: '',
-    specifyPurpose: '', // Error state for the specified purpose
+    specifyPurpose: '',
   };
 
   const [formData, setFormData] = useState(initialState);
   const [formErrors, setFormErrors] = useState(initialErrors);
   const [showPreview, setShowPreview] = useState(false);
+  const [loggedInUser, setLoggedInUser] = useState('');
+  const [showLoginModal, setShowLoginModal] = useState(true);
+  const [userOptions, setUserOptions] = useState([]);
   const billRef = useRef(null);
+  
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+
+  useEffect(() => {
+    fetch('http://localhost:8081/api/get-users')
+      .then(response => response.json())
+      .then(data => setUserOptions(data))
+      .catch(error => toast.error('Failed to fetch users'));
+  }, []);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    if (username && password) {
+      try {
+        const response = await fetch('http://localhost:8081/api/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ username, password }),
+        });
+        if (response.ok) {
+          setLoggedInUser(username);
+          setShowLoginModal(false);
+          toast.success('Login successful!');
+        } else {
+          toast.error('Invalid credentials');
+        }
+      } catch (error) {
+        toast.error('Error during login');
+      }
+    } else {
+      toast.error('Please enter your credentials');
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prevState => ({ ...prevState, [name]: value }));
-    setFormErrors(prevState => ({ ...prevState, [name]: '' })); // Clear the error when user starts typing
+    setFormData((prevState) => ({ ...prevState, [name]: value }));
+    setFormErrors((prevState) => ({ ...prevState, [name]: '' }));
   };
 
   const handlePurposeChange = (e) => {
     const { value } = e.target;
-    setFormData(prevState => ({ ...prevState, purposeOfDonation: value, specifyPurpose: '' }));
-    setFormErrors(prevState => ({ ...prevState, purposeOfDonation: '', specifyPurpose: '' }));
+    setFormData((prevState) => ({ ...prevState, purposeOfDonation: value, specifyPurpose: '' }));
+    setFormErrors((prevState) => ({ ...prevState, purposeOfDonation: '', specifyPurpose: '' }));
   };
 
   const validateFormData = () => {
@@ -115,7 +159,7 @@ const Form = () => {
     setFormErrors(errors);
 
     if (hasError) {
-      const firstErrorField = Object.keys(errors).find(key => errors[key]);
+      const firstErrorField = Object.keys(errors).find((key) => errors[key]);
       if (firstErrorField) {
         document.getElementById(firstErrorField)?.focus();
       }
@@ -128,13 +172,12 @@ const Form = () => {
   const handleGenerateBill = (e) => {
     e.preventDefault();
     if (validateFormData()) {
-      setShowPreview(true); // Show preview without saving to database
+      setShowPreview(true);
     }
   };
 
   const handleConfirmSubmit = async () => {
     if (validateFormData()) {
-      // Finalize the purpose of donation
       let finalPurpose = formData.purposeOfDonation;
       if (formData.purposeOfDonation.includes('(Please Specify)')) {
         finalPurpose = formData.purposeOfDonation.replace('(Please Specify)', `(${formData.specifyPurpose})`);
@@ -189,11 +232,22 @@ const Form = () => {
 
   return (
     <div className="container mx-auto p-4 bg-gradient-to-r from-orange-300 via-yellow-300 to-orange-300 opacity-80 shadow-lg rounded-lg max-w-3xl">
-      <div className="flex flex-col items-center py-6">
-        <img src={logo} alt="RKMG Logo" className="w-24 h-24 mb-4"/>
-        <h1 className="text-3xl font-semibold mb-6">RKMG Billing Form</h1>
+      {/* Header with View Report and Logged-in User */}
+      <div className="flex justify-between items-center mb-6">
+        <button className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+          View Report
+        </button>
+        <span className="text-gray-700 font-semibold">
+          Logged in as: {loggedInUser}
+        </span>
       </div>
-      <form onSubmit={handleGenerateBill} className="space-y-6 px-8">
+
+      <div className="flex flex-col items-center py-6">
+        <img src={logo} alt="RKMG Logo" className="w-24 h-24 mb-4" />
+        <h1 className="text-3xl font-semibold mb-6 text-center">RKMG Billing Form</h1>
+      </div>
+      
+      <form onSubmit={handleGenerateBill} className="space-y-6 px-4 sm:px-8">
         {[
           { label: 'Name', id: 'name', type: 'text', required: true },
           { label: 'Address', id: 'address', type: 'text', required: true },
@@ -235,90 +289,85 @@ const Form = () => {
             options: ['Cash', 'Bank'],
           },
           { label: 'Amount', id: 'amount', type: 'number', required: true },
-        ].map(field => field.type !== 'select' ? (
-          <div key={field.id} className="flex flex-col">
-            <label htmlFor={field.id} className="mb-2 font-medium flex items-center">
-              {field.label}{field.required && <span className="text-red-400">*</span>}
-            </label>
-            <div className="flex items-center">
-              <input 
-                type={field.type} 
-                id={field.id} 
-                name={field.id} 
-                value={formData[field.id]} 
-                onChange={handleChange} 
-                placeholder={`Enter ${field.label}`} 
-                className={`w-full p-2 border ${formErrors[field.id] ? 'border-red-500' : 'border-gray-300'} rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700`} 
-                required={field.required} 
-                aria-label={field.label} 
-              />
-              {formErrors[field.id] && (
-                <BsExclamationCircle className="text-red-500 text-3xl ml-2 animate-pulse" />
-              )}
-            </div>
-            {formErrors[field.id] && (
-              <span className="text-red-500 text-sm mt-1">{formErrors[field.id]}</span>
-            )}
-          </div>
-        ) : (
-          <div key={field.id} className="flex flex-col">
-            <label htmlFor={field.id} className="mb-2 font-medium flex items-center">
-              {field.label}<span className="text-red-400">*</span>
-            </label>
-            <div className="flex items-center">
-              <select 
-                id={field.id} 
-                name={field.id} 
-                value={formData[field.id]} 
-                onChange={field.id === 'purposeOfDonation' ? handlePurposeChange : handleChange} 
-                className={`w-full p-2 border ${formErrors[field.id] ? 'border-red-500' : 'border-gray-300'} rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700`} 
-                required={field.required} 
-                aria-label={field.label}
-              >
-                <option value="">Select</option>
-                {field.options.map(option => (
-                  <option key={option} value={option}>{option}</option>
-                ))}
-              </select>
-              {formErrors[field.id] && (
-                <BsExclamationCircle className="text-red-500 text-3xl ml-2 animate-pulse" />
-              )}
-            </div>
-            {formErrors[field.id] && (
-              <span className="text-red-500 text-sm mt-1">{formErrors[field.id]}</span>
-            )}
-            {field.id === 'purposeOfDonation' && formData.purposeOfDonation.includes('(Please Specify)') && (
-              <div className="flex flex-col mt-2">
-                <label htmlFor="specifyPurpose" className="mb-2 font-medium flex items-center">
-                  Please Specify
-                </label>
-                <div className="flex items-center">
-                  <input 
-                    type="text" 
-                    id="specifyPurpose" 
-                    name="specifyPurpose" 
-                    value={formData.specifyPurpose} 
-                    onChange={handleChange} 
-                    placeholder="Enter the specific purpose" 
-                    className={`w-full p-2 border ${formErrors.specifyPurpose ? 'border-red-500' : 'border-gray-300'} rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700`} 
-                    aria-label="Specify Purpose"
-                  />
-                  {formErrors.specifyPurpose && (
-                    <BsExclamationCircle className="text-red-500 text-3xl ml-2 animate-pulse" />
-                  )}
-                </div>
-                {formErrors.specifyPurpose && (
-                  <span className="text-red-500 text-sm mt-1">{formErrors.specifyPurpose}</span>
-                )}
+        ].map((field) =>
+          field.type !== 'select' ? (
+            <div key={field.id} className="flex flex-col">
+              <label htmlFor={field.id} className="mb-2 font-medium flex items-center">
+                {field.label}
+                {field.required && <span className="text-red-400">*</span>}
+              </label>
+              <div className="flex items-center">
+                <input
+                  type={field.type}
+                  id={field.id}
+                  name={field.id}
+                  value={formData[field.id]}
+                  onChange={handleChange}
+                  placeholder={`Enter ${field.label}`}
+                  className={`w-full p-2 border ${formErrors[field.id] ? 'border-red-500' : 'border-gray-300'} rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700`}
+                  required={field.required}
+                  aria-label={field.label}
+                />
+                {formErrors[field.id] && <BsExclamationCircle className="text-red-500 text-3xl ml-2 animate-pulse" />}
               </div>
-            )}
-          </div>
-        ))}
-        <div className="flex justify-between mt-6">
-          <button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded">
+              {formErrors[field.id] && <span className="text-red-500 text-sm mt-1">{formErrors[field.id]}</span>}
+            </div>
+          ) : (
+            <div key={field.id} className="flex flex-col">
+              <label htmlFor={field.id} className="mb-2 font-medium flex items-center">
+                {field.label}
+                <span className="text-red-400">*</span>
+              </label>
+              <div className="flex items-center">
+                <select
+                  id={field.id}
+                  name={field.id}
+                  value={formData[field.id]}
+                  onChange={field.id === 'purposeOfDonation' ? handlePurposeChange : handleChange}
+                  className={`w-full p-2 border ${formErrors[field.id] ? 'border-red-500' : 'border-gray-300'} rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700`}
+                  required={field.required}
+                  aria-label={field.label}
+                >
+                  <option value="">Select</option>
+                  {field.options.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+                {formErrors[field.id] && <BsExclamationCircle className="text-red-500 text-3xl ml-2 animate-pulse" />}
+              </div>
+              {formErrors[field.id] && <span className="text-red-500 text-sm mt-1">{formErrors[field.id]}</span>}
+              {field.id === 'purposeOfDonation' && formData.purposeOfDonation.includes('(Please Specify)') && (
+                <div className="flex flex-col mt-2">
+                  <label htmlFor="specifyPurpose" className="mb-2 font-medium flex items-center">
+                    Please Specify
+                  </label>
+                  <div className="flex items-center">
+                    <input
+                      type="text"
+                      id="specifyPurpose"
+                      name="specifyPurpose"
+                      value={formData.specifyPurpose}
+                      onChange={handleChange}
+                      placeholder="Enter the specific purpose"
+                      className={`w-full p-2 border ${formErrors.specifyPurpose ? 'border-red-500' : 'border-gray-300'} rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700`}
+                      aria-label="Specify Purpose"
+                    />
+                    {formErrors.specifyPurpose && <BsExclamationCircle className="text-red-500 text-3xl ml-2 animate-pulse" />}
+                  </div>
+                  {formErrors.specifyPurpose && <span className="text-red-500 text-sm mt-1">{formErrors.specifyPurpose}</span>}
+                </div>
+              )}
+            </div>
+          )
+        )}
+
+        <div className="flex flex-col sm:flex-row justify-between mt-6 space-y-4 sm:space-y-0">
+          <button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded w-full sm:w-auto">
             Generate Bill
           </button>
-          <button type="button" onClick={handleClear} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded">
+          <button type="button" onClick={handleClear} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded w-full sm:w-auto">
             Clear All
           </button>
         </div>
@@ -331,17 +380,25 @@ const Form = () => {
           <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg text-center">
             <div ref={billRef} className="space-y-4">
               <div className="text-center">
-                <img src={logo} alt="RKMG Logo" className="w-24 h-24 mx-auto"/>
+                <img src={logo} alt="RKMG Logo" className="w-24 h-24 mx-auto" />
                 <h2 className="text-2xl font-bold">Ramakrishna Mission Guwahati</h2>
                 <p>Bishnu Rabha Nagar, Ulubari, Guwahati, Assam 781007</p>
                 <p>Date: {new Date().toLocaleDateString()}</p>
                 <p>Time: {new Date().toLocaleTimeString()}</p>
               </div>
               <p className="text-lg text-center font-semibold">
-                Mr./Ms./Mrs. <span className="font-bold">{formData.name}</span> donated Rs. <span className="font-bold">{formData.amount}</span> for <span className="font-bold">{formData.purposeOfDonation.includes('(Please Specify)') ? formData.purposeOfDonation.replace('(Please Specify)', `(${formData.specifyPurpose})`) : formData.purposeOfDonation}</span> via <span className="font-bold">{formData.donationMethod}</span>.
+                Mr./Ms./Mrs. <span className="font-bold">{formData.name}</span> donated Rs.{' '}
+                <span className="font-bold">{formData.amount}</span> for{' '}
+                <span className="font-bold">
+                  {formData.purposeOfDonation.includes('(Please Specify)')
+                    ? formData.purposeOfDonation.replace('(Please Specify)', `(${formData.specifyPurpose})`)
+                    : formData.purposeOfDonation}
+                </span>{' '}
+                via <span className="font-bold">{formData.donationMethod}</span>.
               </p>
               <p className="text-center">
-                We are taking his/her donation as a blessing and we ensure that we will use that contribution as said. GOD BLESSED <span className="font-bold">{formData.name}</span> and his/her family.
+                We are taking his/her donation as a blessing and we ensure that we will use that contribution as said. GOD BLESSED{' '}
+                <span className="font-bold">{formData.name}</span> and his/her family.
               </p>
               <div className="space-y-2 mt-4">
                 <div className="flex justify-between">
@@ -382,6 +439,71 @@ const Form = () => {
           </div>
         </div>
       )}
+
+      {/* Login Modal */}
+      <Modal
+  isOpen={showLoginModal}
+  onRequestClose={() => {}}
+  shouldCloseOnOverlayClick={false}
+  contentLabel="Login Modal"
+  ariaHideApp={false}
+  className="fixed inset-0 flex items-center justify-center z-50 transform transition-transform duration-300 ease-out scale-100"
+  overlayClassName="fixed inset-0 bg-black bg-opacity-75 z-40 transition-opacity duration-300 ease-out opacity-100"
+  style={{
+    transition: 'opacity 0.3s ease-out',
+  }}
+>
+  <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md mx-4 transform transition-transform duration-300 ease-out scale-100">
+    <h2 className="text-3xl font-bold mb-6 text-center text-gray-800 animate-fadeIn">Login</h2>
+    <form onSubmit={handleLogin}>
+      <div className="mb-5 animate-fadeInUp">
+        <label
+          htmlFor="username"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Username
+        </label>
+        <select
+          id="username"
+          name="username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"
+        >
+          <option value="">Select User</option>
+          {userOptions.map((user) => (
+            <option key={user.username} value={user.username}>
+              {user.username}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="mb-5 animate-fadeInUp delay-75">
+        <label
+          htmlFor="password"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Password
+        </label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"
+        />
+      </div>
+      <button
+        type="submit"
+        className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded w-full transform transition-transform duration-300 ease-out hover:scale-105"
+      >
+        Login
+      </button>
+    </form>
+  </div>
+</Modal>
+
     </div>
   );
 };

@@ -10,105 +10,106 @@ const PORT = process.env.PORT || 8081;
 app.use(cors());
 app.use(express.json());
 
-// Establish a MySQL connection
-const db = mysql.createConnection({
+// Establish a MySQL connection pool
+const pool = mysql.createPool({
+    connectionLimit: 10, // Modify as needed
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'rkmg_offline_form'
 });
 
-db.connect(err => {
-    if (err) {
-        console.error('Error connecting to the MySQL database:', err);
-        return;
+// Simple query wrapper to use async/await
+const query = (sql, params) => new Promise((resolve, reject) => {
+    pool.query(sql, params, (err, results) => {
+        if (err) return reject(err);
+        resolve(results);
+    });
+});
+
+// Centralized error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send({ error: "Internal Server Error" });
+});
+
+// Fetch Users Endpoint
+app.get('/api/get-users', async (req, res, next) => {
+    const sql = 'SELECT username FROM admin_users';
+    try {
+        const results = await query(sql);
+        res.json(results);
+    } catch (err) {
+        next(err);
     }
-    console.log('Successfully connected to the MySQL database.');
 });
 
 // Login Endpoint
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res, next) => {
     const { username, password } = req.body;
     const sql = 'SELECT password FROM admin_users WHERE username = ?';
-    db.query(sql, [username], (err, results) => {
-        if (err) {
-            console.error('Error fetching user:', err);
-            return res.status(500).send('Database error');
-        }
+    try {
+        const results = await query(sql, [username]);
         if (results.length > 0) {
-            bcrypt.compare(password, results[0].password, (err, isMatch) => {
-                if (err) {
-                    return res.status(500).send('Authentication error');
-                }
-                if (isMatch) {
-                    res.json({ success: true });
-                } else {
-                    res.status(401).send('Invalid credentials');
-                }
-            });
+            const isMatch = await bcrypt.compare(password, results[0].password);
+            if (isMatch) {
+                res.json({ success: true });
+            } else {
+                res.status(401).send('Invalid credentials');
+            }
         } else {
             res.status(404).send('User not found');
         }
-    });
+    } catch (err) {
+        next(err);
+    }
 });
 
 // Add user endpoint
-app.post('/api/add-user', (req, res) => {
+app.post('/api/add-user', async (req, res, next) => {
     const { username, password } = req.body;
-    const hashedPassword = bcrypt.hashSync(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
     const sql = 'INSERT INTO admin_users (username, password) VALUES (?, ?)';
-    db.query(sql, [username, hashedPassword], (err, result) => {
-        if (err) {
-            console.error('Failed to add user:', err);
-            return res.status(500).send('Failed to add user');
-        }
+    try {
+        await query(sql, [username, hashedPassword]);
         res.json({ success: true, message: 'User added successfully' });
-    });
+    } catch (err) {
+        next(err);
+    }
 });
 
 // POST endpoint to handle form submissions
-app.post('/api/submit-form', (req, res) => {
-    const { name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount } = req.body;
-    const sql = `
-        INSERT INTO billingrecords
-        (name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount, submissionDateTime)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW());
-    `;
-    db.query(sql, [name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount], (err, results) => {
-        if (err) {
-            console.error('Failed to insert data:', err);
-            return res.status(500).send('Failed to insert data');
-        }
-        res.status(200).send('Data submitted successfully');
-    });
+app.post('/api/submit-form', async (req, res, next) => {
+    const { submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount } = req.body;
+    try {
+        await query(
+            'INSERT INTO billingrecords (submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount, submissionDateTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
+            [submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount]
+        );
+        res.send('Data submitted successfully');
+    } catch (err) {
+        next(err);
+    }
 });
-
 // GET endpoint to fetch all records with optional filters
-app.get('/api/records', (req, res) => {
+app.get('/api/records', async (req, res, next) => {
     const { column, value } = req.query;
     let sql = 'SELECT * FROM billingrecords WHERE 1=1';
+    const filters = [];
     if (column && value) {
         sql += ` AND ${mysql.escapeId(column)} LIKE ?`;
-        db.query(sql, [`%${value}%`], (err, results) => {
-            if (err) {
-                console.error('Failed to fetch records:', err);
-                return res.status(500).send('Failed to fetch records');
-            }
-            res.json(results);
-        });
-    } else {
-        db.query(sql, (err, results) => {
-            if (err) {
-                console.error('Failed to fetch records:', err);
-                return res.status(500).send('Failed to fetch records');
-            }
-            res.json(results);
-        });
+        filters.push(`%${value}%`);
+    }
+    try {
+        const results = await query(sql, filters);
+        res.json(results);
+    } catch (err) {
+        next(err);
     }
 });
 
 // GET endpoint to download records as an Excel file
-app.get('/api/download-records', async (req, res) => {
+app.get('/api/download-records', async (req, res, next) => {
     const { column, value } = req.query;
     let sql = 'SELECT * FROM billingrecords WHERE 1=1';
     const filters = [];
@@ -117,11 +118,8 @@ app.get('/api/download-records', async (req, res) => {
         filters.push(`%${value}%`);
     }
 
-    db.query(sql, filters, async (err, results) => {
-        if (err) {
-            console.error('Failed to fetch records:', err);
-            return res.status(500).send('Failed to fetch records');
-        }
+    try {
+        const results = await query(sql, filters);
 
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Records');
@@ -150,37 +148,68 @@ app.get('/api/download-records', async (req, res) => {
         res.setHeader('Content-Disposition', 'attachment; filename="records.xlsx"');
         await workbook.xlsx.write(res);
         res.end();
-    });
+    } catch (err) {
+        next(err);
+    }
 });
 
 // DELETE endpoint to delete a record by ID
-app.delete('/api/delete-record/:id', (req, res) => {
+app.delete('/api/delete-record/:id', async (req, res, next) => {
     const { id } = req.params;
     const sql = 'DELETE FROM billingrecords WHERE id = ?';
-    db.query(sql, [id], (err, results) => {
-        if (err) {
-            console.error('Failed to delete record:', err);
-            return res.status(500).send('Failed to delete record');
-        }
+    try {
+        await query(sql, [id]);
         res.status(200).send('Record deleted successfully');
-    });
+    } catch (err) {
+        next(err);
+    }
 });
 
 // DELETE endpoint to delete multiple records by IDs
-app.delete('/api/delete-records', (req, res) => {
+app.delete('/api/delete-records', async (req, res, next) => {
     const { ids } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) {
         return res.status(400).send('No records selected for deletion');
     }
 
     const sql = 'DELETE FROM billingrecords WHERE id IN (?)';
-    db.query(sql, [ids], (err, results) => {
-        if (err) {
-            console.error('Failed to delete records:', err);
-            return res.status(500).send('Failed to delete records');
-        }
+    try {
+        await query(sql, [ids]);
         res.status(200).send('Records deleted successfully');
-    });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// Fetch and format bill details for printing
+app.get('/api/print-bill/:id', async (req, res, next) => {
+    const { id } = req.params;
+    const sql = 'SELECT * FROM billingrecords WHERE id = ?';
+    try {
+        const result = await query(sql, [id]);
+        if (result.length === 0) {
+            res.status(404).send('Bill not found');
+            return;
+        }
+        const bill = result[0];
+        const html = `
+            <html>
+            <head>
+                <title>Print Bill ID: ${bill.id}</title>
+            </head>
+            <body>
+                <h1>Bill Details</h1>
+                <p>Name: ${bill.name}</p>
+                <p>Address: ${bill.address}</p>
+                <p>Amount: ${bill.amount}</p>
+                <!-- Add more fields as needed -->
+            </body>
+            </html>
+        `;
+        res.send(html);
+    } catch (err) {
+        next(err);
+    }
 });
 
 // Start the server
