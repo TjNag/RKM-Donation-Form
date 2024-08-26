@@ -81,6 +81,9 @@ app.post('/api/add-user', async (req, res, next) => {
 // POST endpoint to handle form submissions
 app.post('/api/submit-form', async (req, res, next) => {
     const { submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount } = req.body;
+    if (!submittedby_user) {
+        return res.status(400).send('submittedby_user cannot be empty');
+    }
     try {
         await query(
             'INSERT INTO billingrecords (submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount, submissionDateTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',

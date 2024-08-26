@@ -47,8 +47,8 @@ const Form = () => {
   const [formData, setFormData] = useState(initialState);
   const [formErrors, setFormErrors] = useState(initialErrors);
   const [showPreview, setShowPreview] = useState(false);
-  const [loggedInUser, setLoggedInUser] = useState('');
-  const [showLoginModal, setShowLoginModal] = useState(true);
+  const [loggedInUser, setLoggedInUser] = useState(localStorage.getItem('loggedInUser') || '');
+  const [showLoginModal, setShowLoginModal] = useState(!loggedInUser);
   const [userOptions, setUserOptions] = useState([]);
   const billRef = useRef(null);
   
@@ -75,6 +75,7 @@ const Form = () => {
         });
         if (response.ok) {
           setLoggedInUser(username);
+          localStorage.setItem('loggedInUser', username);
           setShowLoginModal(false);
           toast.success('Login successful!');
         } else {
@@ -87,6 +88,13 @@ const Form = () => {
       toast.error('Please enter your credentials');
     }
   };
+
+  const handleLogout = () => {
+    toast.success(loggedInUser+' logged out successfully!');
+    setLoggedInUser('');
+    localStorage.removeItem('loggedInUser');
+    setShowLoginModal(true);
+};
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -189,7 +197,7 @@ const Form = () => {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ ...formData, purposeOfDonation: finalPurpose }),
+          body: JSON.stringify({ ...formData, purposeOfDonation: finalPurpose, submittedby_user: loggedInUser }),
         });
 
         if (response.ok) {
@@ -237,9 +245,17 @@ const Form = () => {
         <button className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
           View Report
         </button>
-        <span className="text-gray-700 font-semibold">
-          Logged in as: {loggedInUser}
-        </span>
+        <div className="flex items-center">
+          <span className="text-gray-700 font-semibold mr-4">
+            Logged in as: {loggedInUser}
+          </span>
+          <button 
+              onClick={handleLogout} 
+              className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col items-center py-6">
