@@ -111,6 +111,33 @@ app.get('/api/records', async (req, res, next) => {
     }
 });
 
+// GET endpoint to fetch records of a specific user between a start date/time and end date/time
+app.get('/api/user-records-by-datetime', async (req, res, next) => {
+    const { username, startDate, startTime, endDate, endTime } = req.query;
+
+    // Combine the date and time to create datetime strings
+    const startDateTime = `${startDate} ${startTime}`;
+    const endDateTime = `${endDate} ${endTime}`;
+
+    console.log('Received username:', username);
+    console.log('Received startDateTime:', startDateTime);
+    console.log('Received endDateTime:', endDateTime);
+
+    const sql = `
+        SELECT name, mobileNo, idType, idNo, purposeOfDonation, donationMethod, amount, submissionDateTime
+        FROM billingrecords
+        WHERE submittedby_user = ? AND submissionDateTime BETWEEN ? AND ?
+    `;
+
+    try {
+        const results = await query(sql, [username, startDateTime, endDateTime]);
+        console.log('Query results:', results); // Log results for debugging
+        res.json(results);
+    } catch (err) {
+        next(err);
+    }
+});
+
 // GET endpoint to download records as an Excel file
 app.get('/api/download-records', async (req, res, next) => {
     const { column, value } = req.query;

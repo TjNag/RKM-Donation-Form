@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { BsExclamationCircle } from 'react-icons/bs';
+import { AiOutlineClose } from 'react-icons/ai';
 import Modal from 'react-modal';
 import logo from '../../assets/logo.png';
 
@@ -51,7 +52,16 @@ const Form = () => {
   const [showLoginModal, setShowLoginModal] = useState(!loggedInUser);
   const [userOptions, setUserOptions] = useState([]);
   const billRef = useRef(null);
-  
+
+  // State for the Report Modal
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [reportData, setReportData] = useState([]);
+  const [showReportDataModal, setShowReportDataModal] = useState(false);
+  const [subTotal, setSubTotal] = useState(0); // State to hold the Sub Total
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
@@ -90,11 +100,11 @@ const Form = () => {
   };
 
   const handleLogout = () => {
-    toast.success(loggedInUser+' logged out successfully!');
+    toast.success(loggedInUser + ' logged out successfully!');
     setLoggedInUser('');
     localStorage.removeItem('loggedInUser');
     setShowLoginModal(true);
-};
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -238,11 +248,73 @@ const Form = () => {
     printWindow.document.close();
   };
 
+  const handleReportRequest = async () => {
+    try {
+      const formattedStartTime = startTime || '00:00'; // Default to 00:00 if not provided
+      const formattedEndTime = endTime || '23:59'; // Default to 23:59 if not provided
+      const response = await fetch(`http://localhost:8081/api/user-records-by-datetime?username=${loggedInUser}&startDate=${startDate}&startTime=${formattedStartTime}&endDate=${endDate}&endTime=${formattedEndTime}`);
+      if (response.ok) {
+        const data = await response.json();
+        setReportData(data);
+        // Calculate the Sub Total
+        const total = data.reduce((acc, row) => acc + parseFloat(row.amount), 0);
+        setSubTotal(total);
+        setShowReportDataModal(true); // Show the report data modal
+        toast.success('Report fetched successfully!');
+      } else {
+        toast.error('Failed to fetch the report.');
+      }
+    } catch (error) {
+      toast.error('Error fetching the report.');
+    }
+  };
+
+  // Functions to open/close the Report Modal
+  const openReportModal = () => setShowReportModal(true);
+  const closeReportModal = () => setShowReportModal(false);
+
+  // Function to close the Report Data Modal
+  const closeReportDataModal = () => setShowReportDataModal(false);
+
+  // Function to download the report as CSV
+  const downloadCSV = () => {
+    const csvHeader = ['Name', 'Mobile No', 'ID Type', 'ID No', 'Purpose', 'Method', 'Amount', 'Date/Time'];
+    const csvRows = reportData.map(row => [
+      row.name,
+      row.mobileNo,
+      row.idType,
+      row.idNo,
+      row.purposeOfDonation,
+      row.donationMethod,
+      row.amount,
+      new Date(row.submissionDateTime).toLocaleString()
+    ]);
+
+    // Add Sub Total row at the end
+    csvRows.push(['Sub Total', '', '', '', '', '', subTotal.toFixed(2), '']);
+
+    const csvContent = [
+      csvHeader.join(','),
+      ...csvRows.map(e => e.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', `report_${startDate}_to_${endDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="container mx-auto p-4 bg-gradient-to-r from-orange-300 via-yellow-300 to-orange-300 opacity-80 shadow-lg rounded-lg max-w-3xl">
       {/* Header with View Report and Logged-in User */}
       <div className="flex justify-between items-center mb-6">
-        <button className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+        <button 
+          className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+          onClick={openReportModal}
+        >
           View Report
         </button>
         <div className="flex items-center">
@@ -250,8 +322,8 @@ const Form = () => {
             Logged in as: {loggedInUser}
           </span>
           <button 
-              onClick={handleLogout} 
-              className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+            onClick={handleLogout} 
+            className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
           >
             Logout
           </button>
@@ -458,67 +530,218 @@ const Form = () => {
 
       {/* Login Modal */}
       <Modal
-  isOpen={showLoginModal}
-  onRequestClose={() => {}}
-  shouldCloseOnOverlayClick={false}
-  contentLabel="Login Modal"
-  ariaHideApp={false}
-  className="fixed inset-0 flex items-center justify-center z-50 transform transition-transform duration-300 ease-out scale-100"
-  overlayClassName="fixed inset-0 bg-black bg-opacity-75 z-40 transition-opacity duration-300 ease-out opacity-100"
-  style={{
-    transition: 'opacity 0.3s ease-out',
-  }}
->
-  <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md mx-4 transform transition-transform duration-300 ease-out scale-100">
-    <h2 className="text-3xl font-bold mb-6 text-center text-gray-800 animate-fadeIn">Login</h2>
-    <form onSubmit={handleLogin}>
-      <div className="mb-5 animate-fadeInUp">
-        <label
-          htmlFor="username"
-          className="block text-sm font-medium text-gray-700"
-        >
-          Username
-        </label>
-        <select
-          id="username"
-          name="username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"
-        >
-          <option value="">Select User</option>
-          {userOptions.map((user) => (
-            <option key={user.username} value={user.username}>
-              {user.username}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="mb-5 animate-fadeInUp delay-75">
-        <label
-          htmlFor="password"
-          className="block text-sm font-medium text-gray-700"
-        >
-          Password
-        </label>
-        <input
-          type="password"
-          id="password"
-          name="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"
-        />
-      </div>
-      <button
-        type="submit"
-        className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded w-full transform transition-transform duration-300 ease-out hover:scale-105"
+        isOpen={showLoginModal}
+        onRequestClose={() => {}}
+        shouldCloseOnOverlayClick={false}
+        contentLabel="Login Modal"
+        ariaHideApp={false}
+        className="fixed inset-0 flex items-center justify-center z-50 transform transition-transform duration-300 ease-out scale-100"
+        overlayClassName="fixed inset-0 bg-black bg-opacity-75 z-40 transition-opacity duration-300 ease-out opacity-100"
+        style={{
+          transition: 'opacity 0.3s ease-out',
+        }}
       >
-        Login
-      </button>
-    </form>
-  </div>
-</Modal>
+        <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md mx-4 transform transition-transform duration-300 ease-out scale-100">
+          <h2 className="text-3xl font-bold mb-6 text-center text-gray-800 animate-fadeIn">Login</h2>
+          <form onSubmit={handleLogin}>
+            <div className="mb-5 animate-fadeInUp">
+              <label
+                htmlFor="username"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Username
+              </label>
+              <select
+                id="username"
+                name="username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"
+              >
+                <option value="">Select User</option>
+                {userOptions.map((user) => (
+                  <option key={user.username} value={user.username}>
+                    {user.username}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="mb-5 animate-fadeInUp delay-75">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Password
+              </label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"
+              />
+            </div>
+            <button
+              type="submit"
+              className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded w-full transform transition-transform duration-300 ease-out hover:scale-105"
+            >
+              Login
+            </button>
+          </form>
+        </div>
+      </Modal>
+
+      {/* Report Modal */}
+      <Modal
+        isOpen={showReportModal}
+        onRequestClose={closeReportModal}
+        contentLabel="View Report Modal"
+        className="fixed inset-0 flex items-center justify-center z-50 transform transition-transform duration-300 ease-out scale-100"
+        overlayClassName="fixed inset-0 bg-black bg-opacity-75 z-40 transition-opacity duration-300 ease-out opacity-100"
+      >
+        <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md mx-4 transform transition-transform duration-300 ease-out scale-100">
+          <div className="flex justify-end">
+            <AiOutlineClose
+              className="text-gray-500 hover:text-gray-800 cursor-pointer"
+              size={24}
+              onClick={closeReportModal} // This function will close the modal
+            />
+          </div>
+          <h2 className="text-2xl font-bold mb-4 text-center text-gray-800">View Report</h2>
+          <form>
+            <div className="mb-4">
+              <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">
+                Start Date
+              </label>
+              <input
+                type="date"
+                id="startDate"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"
+              />
+            </div>
+            <div className="mb-4">
+              <label htmlFor="startTime" className="block text-sm font-medium text-gray-700">
+                Start Time
+              </label>
+              <input
+                type="time"
+                id="startTime"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"
+              />
+            </div>
+            <div className="mb-4">
+              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
+                End Date
+              </label>
+              <input
+                type="date"
+                id="endDate"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"
+              />
+            </div>
+            <div className="mb-4">
+              <label htmlFor="endTime" className="block text-sm font-medium text-gray-700">
+                End Time
+              </label>
+              <input
+                type="time"
+                id="endTime"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"
+              />
+            </div>
+            <div className="flex justify-center mt-6">
+              <button
+                type="button"
+                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+                onClick={handleReportRequest}
+              >
+                Confirm
+              </button>
+            </div>
+          </form>
+        </div>
+      </Modal>
+
+      {/* Report Data Modal */}
+      <Modal
+        isOpen={showReportDataModal}
+        onRequestClose={closeReportDataModal}
+        contentLabel="Report Data Modal"
+        className="fixed inset-0 flex items-center justify-center z-50 transform transition-transform duration-300 ease-out scale-100"
+        overlayClassName="fixed inset-0 bg-black bg-opacity-75 z-40 transition-opacity duration-300 ease-out opacity-100"
+      >
+        <div className="bg-white rounded-lg shadow-lg p-7 w-full max-w-4xl mx-4 transform transition-transform duration-300 ease-out scale-100">
+          <div className="flex justify-end">
+            <AiOutlineClose
+              className="text-gray-500 hover:text-gray-800 cursor-pointer"
+              size={24}
+              onClick={closeReportDataModal} // This function will close the modal
+            />
+          </div>
+          <h2 className="text-2xl font-bold mb-4 text-center text-gray-800">Report Results</h2>
+          <div className="overflow-x-auto">
+            <table className="min-w-full mt-4">
+              <thead>
+                <tr>
+                  <th className="px-4 py-2">Name</th>
+                  <th className="px-4 py-2">Mobile No</th>
+                  <th className="px-4 py-2">ID Type</th>
+                  <th className="px-4 py-2">ID No</th>
+                  <th className="px-4 py-2">Purpose</th>
+                  <th className="px-4 py-2">Method</th>
+                  <th className="px-4 py-2">Amount</th>
+                  <th className="px-4 py-2">Date/Time</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reportData.length > 0 ? (
+                  reportData.map((row, index) => (
+                    <tr key={index}>
+                      <td className="border px-4 py-2">{row.name}</td>
+                      <td className="border px-4 py-2">{row.mobileNo}</td>
+                      <td className="border px-4 py-2">{row.idType}</td>
+                      <td className="border px-4 py-2">{row.idNo}</td>
+                      <td className="border px-4 py-2">{row.purposeOfDonation}</td>
+                      <td className="border px-4 py-2">{row.donationMethod}</td>
+                      <td className="border px-4 py-2">{row.amount}</td>
+                      <td className="border px-4 py-2">{new Date(row.submissionDateTime).toLocaleString()}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="8" className="text-center p-4">No data found for the selected date/time range.</td>
+                  </tr>
+                )}
+                {/* Sub Total Row */}
+                {reportData.length > 0 && (
+                  <tr>
+                    <td colSpan="6" className="text-right font-bold px-4 py-2">Sub Total</td>
+                    <td className="font-bold px-4 py-2">{subTotal.toFixed(2)}</td>
+                    <td className="px-4 py-2"></td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex justify-end mt-6">
+            <button 
+              className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+              onClick={downloadCSV}
+            >
+              Download Report
+            </button>
+          </div>
+        </div>
+      </Modal>
 
     </div>
   );
