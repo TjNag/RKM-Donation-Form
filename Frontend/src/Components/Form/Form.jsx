@@ -4,6 +4,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { BsExclamationCircle } from 'react-icons/bs';
 import { AiOutlineClose } from 'react-icons/ai';
 import Modal from 'react-modal';
+import TestPrint from './TestPrint';
 import logo from '../../assets/logo.png';
 
 Modal.setAppElement('#root');
@@ -51,6 +52,7 @@ const Form = () => {
   const [loggedInUser, setLoggedInUser] = useState(localStorage.getItem('loggedInUser') || '');
   const [showLoginModal, setShowLoginModal] = useState(!loggedInUser);
   const [userOptions, setUserOptions] = useState([]);
+  const [buttonText, setButtonText] = useState('Confirm Submission');
   const billRef = useRef(null);
 
   // State for the Report Modal
@@ -196,31 +198,37 @@ const Form = () => {
 
   const handleConfirmSubmit = async () => {
     if (validateFormData()) {
-      let finalPurpose = formData.purposeOfDonation;
-      if (formData.purposeOfDonation.includes('(Please Specify)')) {
-        finalPurpose = formData.purposeOfDonation.replace('(Please Specify)', `(${formData.specifyPurpose})`);
-      }
-
-      try {
-        const response = await fetch('http://localhost:8081/api/submit-form', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ ...formData, purposeOfDonation: finalPurpose, submittedby_user: loggedInUser }),
-        });
-
-        if (response.ok) {
-          toast.success('Submission Successful!');
-          setShowPreview(false);
-          setTimeout(() => window.location.reload(), 1000);
-        } else {
-          const errorText = await response.text();
-          throw new Error(errorText || 'Failed to submit form');
+        let finalPurpose = formData.purposeOfDonation;
+        if (formData.purposeOfDonation.includes('(Please Specify)')) {
+            finalPurpose = formData.purposeOfDonation.replace('(Please Specify)', `(${formData.specifyPurpose})`);
         }
-      } catch (error) {
-        toast.error(error.message || 'An error occurred!');
-      }
+
+        try {
+            const response = await fetch('http://localhost:8081/api/submit-form', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ ...formData, purposeOfDonation: finalPurpose, submittedby_user: loggedInUser }),
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                toast.success('Submission Successful!');
+                setFormData((prevState) => ({
+                    ...prevState,
+                    id: result.id,
+                    date: new Date(result.date).toLocaleDateString('en-GB'), // Format the date as dd/mm/yyyy
+                }));
+                setButtonText('Print Receipt');
+                setShowPreview(true);
+            } else {
+                const errorText = await response.text();
+                throw new Error(errorText || 'Failed to submit form');
+            }
+        } catch (error) {
+            toast.error(error.message || 'An error occurred!');
+        }
     }
   };
 
@@ -231,21 +239,19 @@ const Form = () => {
   };
 
   const handlePrint = () => {
-    const printContents = billRef.current.innerHTML;
-    const originalContents = document.body.innerHTML;
-
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Print Bill</title>
-        </head>
-        <body onload="window.print();window.close();">
-          ${printContents}
-        </body>
-      </html>
-    `);
+    const printContent = billRef.current;
+    const printWindow = window.open('', '', 'width=800,height=600');
+    printWindow.document.write('<html><head><title>Print Receipt</title>');
+    printWindow.document.write('</head><body>');
+    printWindow.document.write(printContent.innerHTML);
+    printWindow.document.write('</body></html>');
     printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.onafterprint = () => {
+      printWindow.close();
+      handleClear();
+    };
   };
 
   const handleReportRequest = async () => {
@@ -453,7 +459,7 @@ const Form = () => {
 
         <div className="flex flex-col sm:flex-row justify-between mt-6 space-y-4 sm:space-y-0">
           <button type="submit" className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded w-full sm:w-auto">
-            Generate Bill
+            Preview Receipt
           </button>
           <button type="button" onClick={handleClear} className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded w-full sm:w-auto">
             Clear All
@@ -465,67 +471,34 @@ const Form = () => {
       {/* Preview Modal */}
       {showPreview && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-lg text-center">
-            <div ref={billRef} className="space-y-4">
-              <div className="text-center">
-                <img src={logo} alt="RKMG Logo" className="w-24 h-24 mx-auto" />
-                <h2 className="text-2xl font-bold">Ramakrishna Mission Guwahati</h2>
-                <p>Bishnu Rabha Nagar, Ulubari, Guwahati, Assam 781007</p>
-                <p>Date: {new Date().toLocaleDateString()}</p>
-                <p>Time: {new Date().toLocaleTimeString()}</p>
-              </div>
-              <p className="text-lg text-center font-semibold">
-                Mr./Ms./Mrs. <span className="font-bold">{formData.name}</span> donated Rs.{' '}
-                <span className="font-bold">{formData.amount}</span> for{' '}
-                <span className="font-bold">
-                  {formData.purposeOfDonation.includes('(Please Specify)')
-                    ? formData.purposeOfDonation.replace('(Please Specify)', `(${formData.specifyPurpose})`)
-                    : formData.purposeOfDonation}
-                </span>{' '}
-                via <span className="font-bold">{formData.donationMethod}</span>.
-              </p>
-              <p className="text-center">
-                We are taking his/her donation as a blessing and we ensure that we will use that contribution as said. GOD BLESSED{' '}
-                <span className="font-bold">{formData.name}</span> and his/her family.
-              </p>
-              <div className="space-y-2 mt-4">
-                <div className="flex justify-between">
-                  <span className="font-medium">ID Type:</span>
-                  <span>{formData.idType}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">ID No:</span>
-                  <span>{formData.idNo}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Contact:</span>
-                  <span>{formData.mobileNo}</span>
-                </div>
-              </div>
-              <div className="flex justify-end mt-6">
-                <div className="text-center">
-                  <p className="text-gray-500">______________________________</p>
-                  <p className="font-medium">Authorized Signature</p>
-                  <p className="text-gray-500">Place Stamp Here</p>
-                </div>
-              </div>
-              <div className="mt-8 text-center">
-                <p className="font-bold">ॐ भूर्भुवः स्वः तत्सavitur vareṇyaṃ bhargo devasya dhīmahi dhiyo yo naḥ pracodayāt</p>
-              </div>
+          <div className="relative w-full max-w-lg">
+            {/* The receipt preview is rendered without a surrounding white box */}
+            <div ref={billRef} style={{ backgroundColor: 'transparent', margin: '0 auto'}}>
+              <TestPrint formData={formData} />
             </div>
-            <div className="flex justify-between mt-6">
-              <button onClick={handlePrint} className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
-                Print Bill
-              </button>
-              <button onClick={handleConfirmSubmit} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
-                Confirm Submission
-              </button>
-              <button onClick={() => setShowPreview(false)} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">
-                Edit
-              </button>
+            
+            {/* A separate white box surrounding only the buttons */}
+            <div className="bg-white rounded-lg shadow-lg p-4 mt-4">
+              <div className="flex justify-around">
+                {buttonText === 'Confirm Submission' ? (
+                  <>
+                    <button onClick={handleConfirmSubmit} className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+                      Confirm Submission
+                    </button>
+                    <button onClick={() => setShowPreview(false)} className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">
+                      Edit
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={handlePrint} className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded">
+                    Print Receipt
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
+      
       )}
 
       {/* Login Modal */}

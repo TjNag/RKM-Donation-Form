@@ -29,7 +29,6 @@ const query = (sql, params) => new Promise((resolve, reject) => {
 
 // Centralized error handling middleware
 app.use((err, req, res, next) => {
-    console.error(err.stack);
     res.status(500).send({ error: "Internal Server Error" });
 });
 
@@ -85,15 +84,23 @@ app.post('/api/submit-form', async (req, res, next) => {
         return res.status(400).send('submittedby_user cannot be empty');
     }
     try {
-        await query(
+        const result = await query(
             'INSERT INTO billingrecords (submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount, submissionDateTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
             [submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount]
         );
-        res.send('Data submitted successfully');
+        
+        const newRecordId = result.insertId;
+        const newRecord = await query(
+            'SELECT id, submissionDateTime FROM billingrecords WHERE id = ?',
+            [newRecordId]
+        );
+        
+        res.json({ success: true, id: newRecordId, date: newRecord[0].submissionDateTime });
     } catch (err) {
         next(err);
     }
 });
+
 // GET endpoint to fetch all records with optional filters
 app.get('/api/records', async (req, res, next) => {
     const { column, value } = req.query;
@@ -119,10 +126,6 @@ app.get('/api/user-records-by-datetime', async (req, res, next) => {
     const startDateTime = `${startDate} ${startTime}`;
     const endDateTime = `${endDate} ${endTime}`;
 
-    console.log('Received username:', username);
-    console.log('Received startDateTime:', startDateTime);
-    console.log('Received endDateTime:', endDateTime);
-
     const sql = `
         SELECT name, mobileNo, idType, idNo, purposeOfDonation, donationMethod, amount, submissionDateTime
         FROM billingrecords
@@ -131,7 +134,6 @@ app.get('/api/user-records-by-datetime', async (req, res, next) => {
 
     try {
         const results = await query(sql, [username, startDateTime, endDateTime]);
-        console.log('Query results:', results); // Log results for debugging
         res.json(results);
     } catch (err) {
         next(err);
