@@ -439,7 +439,7 @@ const Form = () => {
 
       <div className="flex flex-col items-center py-6">
         <img src={logo} alt="RKMG Logo" className="w-24 h-24 mb-4" />
-        <h1 className="text-3xl font-semibold mb-6 text-center">RKMG Billing Form</h1>
+        <h1 className="text-3xl font-semibold mb-6 text-center">Ramakrishna Mission Ashrama Donation Form</h1>
       </div>
       
       <form onSubmit={handleGenerateBill} className="space-y-6 px-4 sm:px-8">

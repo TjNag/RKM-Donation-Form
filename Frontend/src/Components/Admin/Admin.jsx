@@ -32,15 +32,37 @@ const Admin = () => {
 
     const columns = [
         { label: 'Cashier', value: 'submittedby_user' },
-        { label: 'Bill No.', value: 'receiptId' },
+        { label: 'Receipt ID', value: 'receiptId' },
         { label: 'Name', value: 'name' },
         { label: 'Mobile No.', value: 'mobileNo' },
         { label: 'ID Type', value: 'idType' },
         { label: 'ID Number', value: 'idNo' },
         { label: 'Purpose of Donation', value: 'purposeOfDonation' },
-        { label: 'Method', value: 'donationMethod' },
+        { label: 'Donation Method', value: 'donationMethod' },
         { label: 'Amount', value: 'amount' },
     ];
+
+    const columnsReport = [
+        { label: 'Cashier', value: 'submittedby_user' },
+        { label: 'Receipt ID', value: 'receiptId' },
+        { label: 'Name', value: 'name' },
+        { label: 'Address', value: 'address' },
+        { label: 'District', value: 'district' },
+        { label: 'City', value: 'city' },
+        { label: 'State', value: 'state' },
+        { label: 'Pin Code', value: 'pinCode' },
+        { label: 'Mobile No.', value: 'mobileNo' },
+        { label: 'Alternate Mobile No.', value: 'altMobileNo' },
+        { label: 'Email', value: 'email' },
+        { label: 'ID Type', value: 'idType' },
+        { label: 'ID Number', value: 'idNo' },
+        { label: 'Purpose of Donation', value: 'purposeOfDonation' },
+        { label: 'Donation Method', value: 'donationMethod' },
+        { label: 'Amount', value: 'amount' },
+        { label: 'Cheque No', value: 'chequeNo' },
+        { label: 'Dated', value: 'dated' },
+        { label: 'On Bank', value: 'onBank' },
+    ];    
 
     useEffect(() => {
         if (isLoggedIn) {
@@ -100,11 +122,11 @@ const Admin = () => {
 
     const handleDownloadCsv = () => {
         const csvRows = [];
-        const headers = columns.map(col => col.label).join(',');
+        const headers = columnsReport.map(col => col.label).join(',');
         csvRows.push(headers);
 
         records.forEach(record => {
-            const values = columns.map(col => `"${record[col.value]}"`).join(',');
+            const values = columnsReport.map(col => `"${record[col.value]}"`).join(',');
             csvRows.push(values);
         });
 
