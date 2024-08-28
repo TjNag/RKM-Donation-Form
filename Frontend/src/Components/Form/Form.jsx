@@ -76,6 +76,42 @@ const Form = () => {
   const [password, setPassword] = useState('');
 
   useEffect(() => {
+    let timer;
+  
+    const resetTimer = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        handleLogout();
+        window.location.reload();
+        toast.warning('Logged out due to inactivity.');
+      }, 600000); // 10 minutes in milliseconds
+    };
+  
+    window.addEventListener('mousemove', resetTimer);
+    window.addEventListener('keypress', resetTimer);
+  
+    resetTimer(); // Initialize the timer when the component mounts
+  
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('mousemove', resetTimer);
+      window.removeEventListener('keypress', resetTimer);
+    };
+  }, [loggedInUser]);
+  
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      localStorage.removeItem('loggedInUser');
+    };
+  
+    window.addEventListener('beforeunload', handleBeforeUnload);
+  
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [loggedInUser]);  
+
+  useEffect(() => {
     fetch('http://localhost:8081/api/get-users')
       .then(response => response.json())
       .then(data => setUserOptions(data))
@@ -110,14 +146,10 @@ const Form = () => {
   };
 
   const handleLogout = () => {
-    if (window.confirm('Are you sure you want to log out?')) {
-      toast.success(loggedInUser + ' logged out successfully!');
-      setLoggedInUser('');
-      localStorage.removeItem('loggedInUser');
-      setShowLoginModal(true);
-    } else {
-      toast.warning('Logout cancelled.');
-    }
+    toast.success(loggedInUser + ' logged out successfully!');
+    setLoggedInUser('');
+    localStorage.removeItem('loggedInUser');
+    setShowLoginModal(true);
   };
 
   const handleChange = (e) => {
@@ -336,8 +368,9 @@ const Form = () => {
 
   // Function to download the report as CSV
   const downloadCSV = () => {
-    const csvHeader = ['Name', 'Mobile No', 'ID Type', 'ID No', 'Purpose', 'Method', 'Amount', 'Date/Time'];
+    const csvHeader = ['Receipt ID', 'Name', 'Mobile No', 'ID Type', 'ID No', 'Purpose', 'Method', 'Amount', 'Date/Time'];
     const csvRows = reportData.map(row => [
+      row.receiptId,
       row.name,
       row.mobileNo,
       row.idType,
@@ -349,7 +382,7 @@ const Form = () => {
     ]);
 
     // Add Sub Total row at the end
-    csvRows.push(['Sub Total', '', '', '', '', '', subTotal.toFixed(2), '']);
+    csvRows.push(['Sub Total', '', '', '', '', '', '', subTotal.toFixed(2), '']);
 
     const csvContent = [
       csvHeader.join(','),
@@ -767,7 +800,7 @@ const Form = () => {
         className="fixed inset-0 flex items-center justify-center z-50 transform transition-transform duration-300 ease-out scale-100"
         overlayClassName="fixed inset-0 bg-black bg-opacity-75 z-40 transition-opacity duration-300 ease-out opacity-100"
       >
-        <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-4xl mx-4 transform transition-transform duration-300 ease-out scale-100" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
+        <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-7xl mx-4 transform transition-transform duration-300 ease-out scale-100 no-scrollbar" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
           <div className="flex justify-end">
             <AiOutlineClose
               className="text-gray-500 hover:text-gray-800 cursor-pointer"
@@ -780,6 +813,7 @@ const Form = () => {
             <table className="min-w-full mt-4">
               <thead>
                 <tr>
+                  <th className="px-4 py-2">Receipt ID</th>
                   <th className="px-4 py-2">Name</th>
                   <th className="px-4 py-2">Mobile No</th>
                   <th className="px-4 py-2">ID Type</th>
@@ -794,6 +828,7 @@ const Form = () => {
                 {reportData.length > 0 ? (
                   reportData.map((row, index) => (
                     <tr key={index}>
+                      <td className="border px-4 py-2">{row.receiptId}</td>
                       <td className="border px-4 py-2">{row.name}</td>
                       <td className="border px-4 py-2">{row.mobileNo}</td>
                       <td className="border px-4 py-2">{row.idType}</td>

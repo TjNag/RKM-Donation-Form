@@ -207,7 +207,7 @@ app.get('/api/user-records-by-datetime', async (req, res, next) => {
     const endDateTime = `${endDate} ${endTime}`;
 
     const sql = `
-        SELECT name, mobileNo, idType, idNo, purposeOfDonation, donationMethod, amount, submissionDateTime
+        SELECT receiptId, name, mobileNo, idType, idNo, purposeOfDonation, donationMethod, amount, submissionDateTime
         FROM billingrecords
         WHERE submittedby_user = ? AND submissionDateTime BETWEEN ? AND ?
     `;
