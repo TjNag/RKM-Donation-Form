@@ -12,7 +12,7 @@ app.use(express.json());
 
 // Establish a MySQL connection pool
 const pool = mysql.createPool({
-    connectionLimit: 10, // Modify as needed
+    connectionLimit: 10,
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
@@ -38,6 +38,31 @@ app.get('/api/get-users', async (req, res, next) => {
     try {
         const results = await query(sql);
         res.json(results);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// adminLogin Endpoint
+app.post('/api/adminlogin', async (req, res, next) => {
+    const { username, password } = req.body;
+    const sql = 'SELECT password, user_type FROM admin_users WHERE username = ?';
+    try {
+        const results = await query(sql, [username]);
+        if (results.length > 0) {
+            const isMatch = await bcrypt.compare(password, results[0].password);
+            if (isMatch) {
+                if (results[0].user_type === 'admin') {
+                    res.json({ success: true });
+                } else {
+                    res.status(403).send('Access denied. Admins only.');
+                }
+            } else {
+                res.status(401).send('Invalid credentials');
+            }
+        } else {
+            res.status(404).send('User not found');
+        }
     } catch (err) {
         next(err);
     }
@@ -144,15 +169,27 @@ app.post('/api/update-receipt-id', async (req, res, next) => {
     }
 });
 
-// GET endpoint to fetch all records with optional filters
+// GET endpoint to fetch all records with optional filters, including date range
 app.get('/api/records', async (req, res, next) => {
-    const { column, value } = req.query;
+    const { column, value, startDate, endDate } = req.query;
     let sql = 'SELECT * FROM billingrecords WHERE 1=1';
     const filters = [];
+
     if (column && value) {
         sql += ` AND ${mysql.escapeId(column)} LIKE ?`;
         filters.push(`%${value}%`);
     }
+
+    if (startDate) {
+        sql += ' AND DATE(submissionDateTime) >= ?';
+        filters.push(startDate);
+    }
+
+    if (endDate) {
+        sql += ' AND DATE(submissionDateTime) <= ?';
+        filters.push(endDate);
+    }
+
     try {
         const results = await query(sql, filters);
         res.json(results);
@@ -185,12 +222,23 @@ app.get('/api/user-records-by-datetime', async (req, res, next) => {
 
 // GET endpoint to download records as an Excel file
 app.get('/api/download-records', async (req, res, next) => {
-    const { column, value } = req.query;
+    const { column, value, startDate, endDate } = req.query;
     let sql = 'SELECT * FROM billingrecords WHERE 1=1';
     const filters = [];
+
     if (column && value) {
         sql += ` AND ${mysql.escapeId(column)} LIKE ?`;
         filters.push(`%${value}%`);
+    }
+
+    if (startDate) {
+        sql += ' AND DATE(submissionDateTime) >= ?';
+        filters.push(startDate);
+    }
+
+    if (endDate) {
+        sql += ' AND DATE(submissionDateTime) <= ?';
+        filters.push(endDate);
     }
 
     try {

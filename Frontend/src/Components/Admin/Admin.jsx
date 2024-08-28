@@ -1,12 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
-import { FaTrash, FaPrint, FaSync, FaEdit } from 'react-icons/fa';
+import { FaTrash, FaSync, FaPrint, FaEdit } from 'react-icons/fa';
 import { saveAs } from 'file-saver';
 import 'react-toastify/dist/ReactToastify.css';
 import 'tailwindcss/tailwind.css';
-import logo from '../../assets/logo.png'; // Make sure the path is correct according to your project structure
+import logo from '../../assets/logo.png';
 import Modal from 'react-modal';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { debounce } from 'lodash';
 
 const Admin = () => {
     const [records, setRecords] = useState([]);
@@ -16,55 +19,37 @@ const Admin = () => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [isModalOpen, setIsModalOpen] = useState(false); // Modal open state
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [startDate, setStartDate] = useState(null);
+    const [endDate, setEndDate] = useState(null);
     const [modalData, setModalData] = useState({
         newUsername: '',
         newPassword: '',
-        userType: 'user', // Default user type
-        isUpdate: false, // Flag to distinguish between add and update
-        updateUser: '', // The user being updated
+        userType: 'user',
+        isUpdate: false,
+        updateUser: '',
     });
 
     const columns = [
+        { label: 'Cashier', value: 'submittedby_user' },
+        { label: 'Bill No.', value: 'receiptId' },
         { label: 'Name', value: 'name' },
-        { label: 'Address', value: 'address' },
-        { label: 'District', value: 'district' },
-        { label: 'City', value: 'city' },
-        { label: 'State', value: 'state' },
-        { label: 'Pin Code', value: 'pinCode' },
-        { label: 'Mobile Number', value: 'mobileNo' },
-        { label: 'Alt Mobile Number', value: 'altMobileNo' },
-        { label: 'Email', value: 'email' },
+        { label: 'Mobile No.', value: 'mobileNo' },
         { label: 'ID Type', value: 'idType' },
         { label: 'ID Number', value: 'idNo' },
         { label: 'Purpose of Donation', value: 'purposeOfDonation' },
+        { label: 'Method', value: 'donationMethod' },
         { label: 'Amount', value: 'amount' },
-        { label: 'User Type', value: 'userType' }, // Added userType column
     ];
-
-    const handlePrint = () => {
-        const printContents = document.body.innerHTML;
-        const originalContents = document.body.innerHTML;
-
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(`
-          <html>
-            <head>
-              <title>Print Bill</title>
-            </head>
-            <body onload="window.print();window.close();">
-              ${printContents}
-            </body>
-          </html>
-        `);
-        printWindow.document.close();
-    };
 
     useEffect(() => {
         if (isLoggedIn) {
-            fetchRecords();
+            debouncedFetchRecords();
         }
-    }, [isLoggedIn, searchColumn, searchTerm]);
+        return () => {
+            debouncedFetchRecords.cancel();
+        };
+    }, [isLoggedIn, searchColumn, searchTerm, startDate, endDate]);
 
     const fetchRecords = async () => {
         setIsLoading(true);
@@ -73,6 +58,8 @@ const Admin = () => {
                 params: {
                     column: searchColumn,
                     value: searchTerm,
+                    startDate: startDate ? startDate.toISOString().split('T')[0] : null,
+                    endDate: endDate ? endDate.toISOString().split('T')[0] : null,
                 },
             });
             setRecords(data);
@@ -81,6 +68,8 @@ const Admin = () => {
         }
         setIsLoading(false);
     };
+
+    const debouncedFetchRecords = useCallback(debounce(fetchRecords, 300), [searchColumn, searchTerm, startDate, endDate]);
 
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this record?')) {
@@ -97,7 +86,7 @@ const Admin = () => {
     const handleLogin = async (e) => {
         e.preventDefault();
         try {
-            const response = await axios.post(`http://localhost:8081/api/login`, { username, password });
+            const response = await axios.post(`http://localhost:8081/api/adminlogin`, { username, password });
             if (response.data.success) {
                 setIsLoggedIn(true);
                 toast.success('Logged in successfully');
@@ -134,16 +123,14 @@ const Admin = () => {
         const { newUsername, newPassword, userType, isUpdate, updateUser } = modalData;
         try {
             if (isUpdate) {
-                // Update user data
                 await axios.post(`http://localhost:8081/api/update-user`, { username: updateUser, newUsername, newPassword, userType });
                 toast.success('User updated successfully');
             } else {
-                // Add new user
                 await axios.post(`http://localhost:8081/api/add-user`, { username: newUsername, password: newPassword, userType });
                 toast.success('User added successfully');
             }
             setIsModalOpen(false);
-            fetchRecords(); // Refresh the list
+            debouncedFetchRecords(); 
         } catch (error) {
             toast.error('Failed to save user data');
         }
@@ -192,13 +179,32 @@ const Admin = () => {
             </div>
             <h1 className="text-2xl font-semibold text-center mb-4">Admin Dashboard</h1>
             <div className="flex items-center justify-center space-x-2 mb-4">
+                <DatePicker
+                    selected={startDate}
+                    onChange={(date) => setStartDate(date)}
+                    selectsStart
+                    startDate={startDate}
+                    endDate={endDate}
+                    placeholderText="Start Date"
+                    className="border p-2 rounded"
+                />
+                <DatePicker
+                    selected={endDate}
+                    onChange={(date) => setEndDate(date)}
+                    selectsEnd
+                    startDate={startDate}
+                    endDate={endDate}
+                    minDate={startDate}
+                    placeholderText="End Date"
+                    className="border p-2 rounded"
+                />
                 <input
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="Search..."
                     className="border p-2 rounded w-full"
-                    onKeyPress={(e) => e.key === 'Enter' && fetchRecords()}
+                    onKeyPress={(e) => e.key === 'Enter' && debouncedFetchRecords()}
                 />
                 <select
                     value={searchColumn}
@@ -209,11 +215,11 @@ const Admin = () => {
                         <option key={column.value} value={column.value}>{column.label}</option>
                     ))}
                 </select>
-                <button onClick={fetchRecords} className="bg-teal-500 hover:bg-teal-700 text-white p-2 rounded">
+                <button onClick={debouncedFetchRecords} className="bg-teal-500 hover:bg-teal-700 text-white p-2 rounded">
                     <FaSync />
                 </button>
                 <button onClick={handleDownloadCsv} className="bg-green-500 hover:bg-green-700 text-white p-2 rounded">
-                    Download
+                    Report
                 </button>
                 <button onClick={openModal} className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded">
                     Add User
@@ -238,9 +244,6 @@ const Admin = () => {
                                     <td key={column.value} className="px-4 py-2">{record[column.value]}</td>
                                 ))}
                                 <td className="px-4 py-2 flex justify-center space-x-2">
-                                    <button onClick={handlePrint} className="bg-green-500 hover:bg-green-700 text-white p-1 rounded">
-                                        <FaPrint />
-                                    </button>
                                     <button onClick={() => handleDelete(record.id)} className="bg-red-500 hover:bg-red-700 text-white p-1 rounded">
                                         <FaTrash />
                                     </button>
@@ -251,7 +254,6 @@ const Admin = () => {
                 </table>
             )}
 
-            {/* Modal for adding/updating user */}
             <Modal
                 isOpen={isModalOpen}
                 onRequestClose={() => setIsModalOpen(false)}
