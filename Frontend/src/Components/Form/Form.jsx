@@ -6,6 +6,8 @@ import { AiOutlineClose } from 'react-icons/ai';
 import Modal from 'react-modal';
 import TestPrint from './TestPrint';
 import logo from '../../assets/logo.png';
+import rkmgtemple from '../../assets/rkmgtemple.png';
+import './Form.css';
 
 Modal.setAppElement('#root');
 
@@ -355,7 +357,22 @@ const Form = () => {
   };
 
   return (
-    <div className="container mx-auto p-4 bg-gradient-to-r from-orange-300 via-yellow-300 to-orange-300 opacity-80 shadow-lg rounded-lg max-w-3xl">
+    <>
+    <div className='no-scroll'
+      style={{
+        backgroundImage: `url(${rkmgtemple})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        filter: 'blur(10px)', // Apply the blur effect
+        height: '100vh', // Ensure it covers the full viewport height
+        width: '100vw', // Ensure it covers the full viewport width
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        zIndex: '-1', // Place it behind all other content
+      }}
+    />
+    <div className="container mx-auto p-4 bg-gradient-to-r from-orange-300 via-yellow-300 to-orange-300 opacity-80 shadow-lg rounded-lg max-w-3xl no-scrollbar h-screen overflow-y-scroll">
       {/* Header with View Report and Logged-in User */}
       <div className="flex justify-between items-center mb-6">
         <button 
@@ -740,7 +757,7 @@ const Form = () => {
         className="fixed inset-0 flex items-center justify-center z-50 transform transition-transform duration-300 ease-out scale-100"
         overlayClassName="fixed inset-0 bg-black bg-opacity-75 z-40 transition-opacity duration-300 ease-out opacity-100"
       >
-        <div className="bg-white rounded-lg shadow-lg p-7 w-full max-w-4xl mx-4 transform transition-transform duration-300 ease-out scale-100">
+        <div className="bg-white rounded-lg shadow-lg p-4 w-full max-w-4xl mx-4 transform transition-transform duration-300 ease-out scale-100" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
           <div className="flex justify-end">
             <AiOutlineClose
               className="text-gray-500 hover:text-gray-800 cursor-pointer"
@@ -804,7 +821,38 @@ const Form = () => {
         </div>
       </Modal>
 
+    {/* Footer */}
+    <footer className="bg-gradient-to-r from-yellow-400 via-orange-400 to-yellow-400 opacity-80 shadow-lg py-6 mt-10">
+      <div className="container mx-auto px-4">
+        <div className="flex flex-col md:flex-row justify-between items-center">
+          {/* Developed By Section */}
+          <div className="text-center md:text-left mb-4 md:mb-0">
+            <h3 className="text-xl font-semibold">Developed By</h3>
+            <p>Tirthajyoti Nag</p>
+            <p className="text-sm">Phone : 74395 25958</p>
+            <p className="text-sm">E-mail : tirthajyotinag.2001@gmail.com</p>
+            <p>Debanjan Pan</p>
+            <p className="text-sm">Phone : 96418 66597</p>
+            <p className="text-sm">E-mail : debanjanpan2@gmail.com</p>
+          </div>
+
+          {/* Organization Contact Details */}
+          <div className="text-center md:text-right">
+            <h3 className="text-xl font-semibold">Contact Us</h3>
+            <p>Ramakrishna Mission Ashrama</p>
+            <p className="text-xs">&#40;A Branch Centre of Ramakrishna Mission,</p>
+            <p className="text-xs">PO-Belur Math, Dist-Howrah, West Bengal, 711202&#41;</p>
+            <p className="text-sm">Ramakrishna Mission Road, Ulubari,</p>
+            <p className="text-sm">Guwahati, Assam 781007, India</p>
+            <p className="text-sm">Phone : 95314 34681, 95314 34682</p>
+            <p className="text-sm">E-mail : guwahati@rkmm.org</p>
+          </div>
+        </div>
+      </div>
+    </footer>
+
     </div>
+    </>
   );
 };
 
