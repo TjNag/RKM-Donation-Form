@@ -79,23 +79,66 @@ app.post('/api/add-user', async (req, res, next) => {
 
 // POST endpoint to handle form submissions
 app.post('/api/submit-form', async (req, res, next) => {
-    const { submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount } = req.body;
+    const {
+        submittedby_user, name, address, district, city, state, pinCode, mobileNo,
+        altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount,
+        chequeNo, dated, onBank
+    } = req.body;
+    
     if (!submittedby_user) {
         return res.status(400).send('submittedby_user cannot be empty');
     }
+
+    let sql;
+    let params;
+
+    if (donationMethod === 'Cheque') {
+        if (!chequeNo || chequeNo.length !== 6) {
+            return res.status(400).send('Invalid cheque number');
+        }
+        if (!dated || !onBank) {
+            return res.status(400).send('Cheque details are incomplete');
+        }
+
+        sql = `INSERT INTO billingrecords (
+            submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo, 
+            email, idType, idNo, purposeOfDonation, donationMethod, amount, chequeNo, dated, onBank, 
+            submissionDateTime
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`;
+
+        params = [
+            submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo,
+            email, idType, idNo, purposeOfDonation, donationMethod, amount, chequeNo, dated, onBank
+        ];
+    } else {
+        sql = `INSERT INTO billingrecords (
+            submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo, 
+            email, idType, idNo, purposeOfDonation, donationMethod, amount, submissionDateTime
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`;
+
+        params = [
+            submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo,
+            email, idType, idNo, purposeOfDonation, donationMethod, amount
+        ];
+    }
+
     try {
-        const result = await query(
-            'INSERT INTO billingrecords (submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount, submissionDateTime) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())',
-            [submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount]
-        );
-        
+        const result = await query(sql, params);
         const newRecordId = result.insertId;
-        const newRecord = await query(
-            'SELECT id, submissionDateTime FROM billingrecords WHERE id = ?',
-            [newRecordId]
-        );
-        
+        const newRecord = await query('SELECT id, submissionDateTime FROM billingrecords WHERE id = ?', [newRecordId]);
         res.json({ success: true, id: newRecordId, date: newRecord[0].submissionDateTime });
+    } catch (err) {
+        next(err);
+    }
+});
+
+// POST endpoint to update the receiptId after generating it
+app.post('/api/update-receipt-id', async (req, res, next) => {
+    const { id, receiptId } = req.body;
+    const sql = 'UPDATE billingrecords SET receiptId = ? WHERE id = ?';
+    try {
+        await query(sql, [receiptId, id]);
+        res.json({ success: true });
     } catch (err) {
         next(err);
     }
@@ -170,6 +213,9 @@ app.get('/api/download-records', async (req, res, next) => {
             { header: 'Purpose of Donation', key: 'purposeOfDonation', width: 30 },
             { header: 'Donation Method', key: 'donationMethod', width: 20 },
             { header: 'Amount', key: 'amount', width: 15 },
+            { header: 'Cheque No', key: 'chequeNo', width: 20 },
+            { header: 'Dated', key: 'dated', width: 20 },
+            { header: 'On Bank', key: 'onBank', width: 30 },
             { header: 'Submission DateTime', key: 'submissionDateTime', width: 30 }
         ];
         results.forEach(record => {

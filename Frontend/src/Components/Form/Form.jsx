@@ -27,6 +27,9 @@ const Form = () => {
     donationMethod: '',
     amount: '',
     specifyPurpose: '',
+    chequeNo: '',
+    dated: '',
+    onBank: '',
   };
 
   const initialErrors = {
@@ -44,6 +47,9 @@ const Form = () => {
     donationMethod: '',
     amount: '',
     specifyPurpose: '',
+    chequeNo: '',
+    dated: '',
+    onBank: '',
   };
 
   const [formData, setFormData] = useState(initialState);
@@ -171,6 +177,20 @@ const Form = () => {
       errors.donationMethod = 'Please select a donation method.';
       hasError = true;
     }
+    if (formData.donationMethod === 'Cheque') {
+      if (!/^\d{6}$/.test(formData.chequeNo)) {
+        errors.chequeNo = 'Please enter a valid 6-digit cheque number.';
+        hasError = true;
+      }
+      if (!formData.dated.trim()) {
+        errors.dated = 'Please select a valid date.';
+        hasError = true;
+      }
+      if (!formData.onBank.trim()) {
+        errors.onBank = 'Please enter the bank name.';
+        hasError = true;
+      }
+    }
     if (parseFloat(formData.amount) <= 0) {
       errors.amount = 'Donation amount should be greater than zero.';
       hasError = true;
@@ -193,48 +213,69 @@ const Form = () => {
     e.preventDefault();
     if (validateFormData()) {
       setShowPreview(true);
+      setButtonText('Confirm Submission');
     }
   };
 
   const handleConfirmSubmit = async () => {
     if (validateFormData()) {
-        let finalPurpose = formData.purposeOfDonation;
-        if (formData.purposeOfDonation.includes('(Please Specify)')) {
-            finalPurpose = formData.purposeOfDonation.replace('(Please Specify)', `(${formData.specifyPurpose})`);
-        }
+      let finalPurpose = formData.purposeOfDonation;
+      if (formData.purposeOfDonation.includes('(Please Specify)')) {
+        finalPurpose = formData.purposeOfDonation.replace('(Please Specify)', `(${formData.specifyPurpose})`);
+      }
 
-        try {
-            const response = await fetch('http://localhost:8081/api/submit-form', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ ...formData, purposeOfDonation: finalPurpose, submittedby_user: loggedInUser }),
-            });
+      try {
+        // Submit the form and get the new record id and date
+        const response = await fetch('http://localhost:8081/api/submit-form', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ ...formData, purposeOfDonation: finalPurpose, submittedby_user: loggedInUser }),
+        });
 
-            if (response.ok) {
-                const result = await response.json();
-                toast.success('Submission Successful!');
-                setFormData((prevState) => ({
-                    ...prevState,
-                    id: result.id,
-                    date: new Date(result.date).toLocaleDateString('en-GB'), // Format the date as dd/mm/yyyy
-                }));
-                setButtonText('Print Receipt');
-                setShowPreview(true);
-            } else {
-                const errorText = await response.text();
-                throw new Error(errorText || 'Failed to submit form');
-            }
-        } catch (error) {
-            toast.error(error.message || 'An error occurred!');
+        if (response.ok) {
+          const result = await response.json();
+          
+          // Generate the receiptId
+          const dateObj = new Date(result.date);
+          const financialYear = dateObj.getMonth() >= 3 ? 
+            `${dateObj.getFullYear() % 100}${(dateObj.getFullYear() + 1) % 100}` : 
+            `${(dateObj.getFullYear() - 1) % 100}${dateObj.getFullYear() % 100}`;
+          const receiptId = `${financialYear}/${formData.donationMethod.toUpperCase()}/${result.id.toString().padStart(5, '0')}`;
+
+          // Update the receiptId in the database
+          await fetch(`http://localhost:8081/api/update-receipt-id`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ id: result.id, receiptId }),
+          });
+
+          // Update the formData with the receiptId and display the preview
+          setFormData((prevState) => ({
+            ...prevState,
+            id: result.id,
+            date: new Date(result.date).toLocaleDateString('en-GB'),
+            receiptId,
+          }));
+          setButtonText('Print Receipt');
+          setShowPreview(true);
+        } else {
+          const errorText = await response.text();
+          throw new Error(errorText || 'Failed to submit form');
         }
+      } catch (error) {
+        toast.error(error.message || 'An error occurred!');
+      }
     }
   };
 
   const handleClear = () => {
     setFormData(initialState);
     setFormErrors(initialErrors);
+    setButtonText('Confirm Submission');  // Reset button text to initial state
     setShowPreview(false);
   };
 
@@ -250,7 +291,7 @@ const Form = () => {
     printWindow.print();
     printWindow.onafterprint = () => {
       printWindow.close();
-      handleClear();
+      handleClear();  // Clear the form and reset states after printing
     };
   };
 
@@ -261,10 +302,10 @@ const Form = () => {
       const response = await fetch(`http://localhost:8081/api/user-records-by-datetime?username=${loggedInUser}&startDate=${startDate}&startTime=${formattedStartTime}&endDate=${endDate}&endTime=${formattedEndTime}`);
       if (response.ok) {
         const data = await response.json();
-        setReportData(data);
         // Calculate the Sub Total
         const total = data.reduce((acc, row) => acc + parseFloat(row.amount), 0);
         setSubTotal(total);
+        setReportData(data);
         setShowReportDataModal(true); // Show the report data modal
         toast.success('Report fetched successfully!');
       } else {
@@ -352,7 +393,7 @@ const Form = () => {
           { label: 'Mobile No', id: 'mobileNo', type: 'text', required: true },
           { label: 'Alternate Mobile No', id: 'altMobileNo', type: 'text' },
           { label: 'Email', id: 'email', type: 'email' },
-          { label: 'ID Type', id: 'idType', type: 'select', required: true, options: ['Aadhar Card', 'PAN Card', 'Driving Licence', 'Voter Card', 'Ration Card'] },
+          { label: 'ID Type', id: 'idType', type: 'select', required: true, options: ['Aadhar Card', 'PAN Card', 'Driving Licence', 'Voter Card', 'Passport'] },
           { label: 'ID Number', id: 'idNo', type: 'text', required: true },
           {
             label: 'Purpose of Donation',
@@ -380,7 +421,7 @@ const Form = () => {
             id: 'donationMethod',
             type: 'select',
             required: true,
-            options: ['Cash', 'Bank'],
+            options: ['Cash', 'Cheque', 'Bank Transfer (PoS)'],
           },
           { label: 'Amount', id: 'amount', type: 'number', required: true },
         ].map((field) =>
@@ -455,6 +496,53 @@ const Form = () => {
               )}
             </div>
           )
+        )}
+
+        {formData.donationMethod === 'Cheque' && (
+          <div className="flex space-x-4">
+            <div className="flex flex-col">
+              <label htmlFor="chequeNo" className="mb-2 font-medium">Cheque No <span className="text-red-400">*</span></label>
+              <input
+                type="text"
+                id="chequeNo"
+                name="chequeNo"
+                value={formData.chequeNo}
+                onChange={handleChange}
+                placeholder="Enter Cheque No"
+                className={`w-full p-2 border ${formErrors.chequeNo ? 'border-red-500' : 'border-gray-300'} rounded`}
+                required
+                pattern="\d{6}"  // Ensure that chequeNo is 6 digits
+              />
+              {formErrors.chequeNo && <span className="text-red-500 text-sm mt-1">{formErrors.chequeNo}</span>}
+            </div>
+            <div className="flex flex-col">
+              <label htmlFor="dated" className="mb-2 font-medium">Dated <span className="text-red-400">*</span></label>
+              <input
+                type="date"
+                id="dated"
+                name="dated"
+                value={formData.dated}
+                onChange={handleChange}
+                className={`w-full p-2 border ${formErrors.dated ? 'border-red-500' : 'border-gray-300'} rounded`}
+                required
+              />
+              {formErrors.dated && <span className="text-red-500 text-sm mt-1">{formErrors.dated}</span>}
+            </div>
+            <div className="flex flex-col">
+              <label htmlFor="onBank" className="mb-2 font-medium">On Bank <span className="text-red-400">*</span></label>
+              <input
+                type="text"
+                id="onBank"
+                name="onBank"
+                value={formData.onBank}
+                onChange={handleChange}
+                placeholder="Enter Bank Name"
+                className={`w-full p-2 border ${formErrors.onBank ? 'border-red-500' : 'border-gray-300'} rounded`}
+                required
+              />
+              {formErrors.onBank && <span className="text-red-500 text-sm mt-1">{formErrors.onBank}</span>}
+            </div>
+          </div>
         )}
 
         <div className="flex flex-col sm:flex-row justify-between mt-6 space-y-4 sm:space-y-0">

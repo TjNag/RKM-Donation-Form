@@ -33,7 +33,7 @@ const TestPrint = ({ formData }) => {
         <div id="receipt-container" style={{ position: 'relative', width: '21cm', height: '14.85cm', margin: '0 auto', padding: '0', border: '0', fontFamily: 'Times New Roman, Arial, sans-serif', fontSize: '13pt' }}>
             <img src={backgroundImage} alt="Donation Receipt Background" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: -1 }} />
             <div style={{ position: 'absolute', top: '4.25cm', left: '2.21cm' }} className='text-lg'>
-                {formData.id}
+                {formData.receiptId}
             </div>
             <div style={{ position: 'absolute', top: '4.25cm', left: '15.9cm' }} className='text-lg'>
                 {formData.date}
@@ -65,6 +65,15 @@ const TestPrint = ({ formData }) => {
             <div style={{ position: 'absolute', top: '11.97cm', left: '0.9cm', width: '15cm' }} className='text-2xl font-medium'>
                 {parseFloat(formData.amount).toFixed(2)}
             </div>
+
+            {/* Conditionally render cheque details if donation method is Cheque */}
+            {formData.donationMethod === 'Cheque' && (
+                <>
+                    <div style={{ position: 'absolute', top: '9.86cm', left: '6.1cm', width: '15cm' }} className='text-lg'>
+                        &#40;Cheque No: {formData.chequeNo}, Dated: {formData.dated}, On Bank: {formData.onBank}&#41;
+                    </div>
+                </>
+            )}
 
             <style>{`
                 @media print {
