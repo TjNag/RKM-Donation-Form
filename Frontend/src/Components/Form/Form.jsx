@@ -102,7 +102,7 @@ const Form = () => {
           toast.error('Invalid credentials');
         }
       } catch (error) {
-        toast.error('Error during login');
+        toast.error('Network Error. Please try again later.');
       }
     } else {
       toast.error('Please enter your credentials');
@@ -110,10 +110,14 @@ const Form = () => {
   };
 
   const handleLogout = () => {
-    toast.success(loggedInUser + ' logged out successfully!');
-    setLoggedInUser('');
-    localStorage.removeItem('loggedInUser');
-    setShowLoginModal(true);
+    if (window.confirm('Are you sure you want to log out?')) {
+      toast.success(loggedInUser + ' logged out successfully!');
+      setLoggedInUser('');
+      localStorage.removeItem('loggedInUser');
+      setShowLoginModal(true);
+    } else {
+      toast.warning('Logout cancelled.');
+    }
   };
 
   const handleChange = (e) => {
@@ -237,6 +241,7 @@ const Form = () => {
         });
 
         if (response.ok) {
+          toast.success('Form submitted successfully!');
           const result = await response.json();
           
           // Generate the receiptId
@@ -244,7 +249,7 @@ const Form = () => {
           const financialYear = dateObj.getMonth() >= 3 ? 
             `${dateObj.getFullYear() % 100}${(dateObj.getFullYear() + 1) % 100}` : 
             `${(dateObj.getFullYear() - 1) % 100}${dateObj.getFullYear() % 100}`;
-          const receiptId = `${financialYear}/${formData.donationMethod.toUpperCase()}/${result.id.toString().padStart(5, '0')}`;
+          const receiptId = `${financialYear}/${formData.donationMethod.toUpperCase()}/${result.id.toString().padStart(10, '0')}`;
 
           // Update the receiptId in the database
           await fetch(`http://localhost:8081/api/update-receipt-id`, {
@@ -275,10 +280,14 @@ const Form = () => {
   };
 
   const handleClear = () => {
-    setFormData(initialState);
-    setFormErrors(initialErrors);
-    setButtonText('Confirm Submission');  // Reset button text to initial state
-    setShowPreview(false);
+    if (window.confirm('Are you sure you want to clear the form?')) {
+      setFormData(initialState);
+      setFormErrors(initialErrors);
+      setButtonText('Confirm Submission');  // Reset button text to initial state
+      setShowPreview(false);
+    } else {
+      toast.warning('Clear action cancelled.');
+    }
   };
 
   const handlePrint = () => {
@@ -354,6 +363,7 @@ const Form = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    toast.success('Report download started.');
   };
 
   return (
