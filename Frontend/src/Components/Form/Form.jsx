@@ -281,7 +281,19 @@ const Form = () => {
           const financialYear = dateObj.getMonth() >= 3 ? 
             `${dateObj.getFullYear() % 100}${(dateObj.getFullYear() + 1) % 100}` : 
             `${(dateObj.getFullYear() - 1) % 100}${dateObj.getFullYear() % 100}`;
-          const receiptId = `${financialYear}/${formData.donationMethod.toUpperCase()}/${result.id.toString().padStart(10, '0')}`;
+            let receiptPrefix;
+
+            // Determine the prefix based on the donation method
+            if (formData.donationMethod.toLowerCase() === 'cash') {
+                receiptPrefix = 'C';
+            } else if (formData.donationMethod.toLowerCase() === 'cheque' || formData.donationMethod.toLowerCase() === 'bank transfer (pos)') {
+                receiptPrefix = 'D';
+            } else {
+                receiptPrefix = formData.donationMethod.toUpperCase(); // fallback to using the full method name in uppercase if it doesn't match specific cases
+            }
+            
+            // Generate the receiptId using the appropriate prefix
+            const receiptId = `${financialYear}/${receiptPrefix}/${result.id.toString().padStart(10, '0')}`;            
 
           // Update the receiptId in the database
           await fetch(`http://localhost:8081/api/update-receipt-id`, {
@@ -312,14 +324,10 @@ const Form = () => {
   };
 
   const handleClear = () => {
-    if (window.confirm('Are you sure you want to clear the form?')) {
       setFormData(initialState);
       setFormErrors(initialErrors);
       setButtonText('Confirm Submission');  // Reset button text to initial state
       setShowPreview(false);
-    } else {
-      toast.warning('Clear action cancelled.');
-    }
   };
 
   const handlePrint = () => {
@@ -334,7 +342,7 @@ const Form = () => {
     printWindow.print();
     printWindow.onafterprint = () => {
       printWindow.close();
-      handleClear();  // Clear the form and reset states after printing
+      handleClear();
     };
   };
 
