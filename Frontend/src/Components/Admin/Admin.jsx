@@ -40,6 +40,7 @@ const Admin = () => {
         { label: 'Purpose of Donation', value: 'purposeOfDonation' },
         { label: 'Donation Method', value: 'donationMethod' },
         { label: 'Amount', value: 'amount' },
+        { label: 'Date/Time', value: 'submissionDateTime' },
     ];
 
     const columnsReport = [
@@ -62,6 +63,7 @@ const Admin = () => {
         { label: 'Cheque No', value: 'chequeNo' },
         { label: 'Dated', value: 'dated' },
         { label: 'On Bank', value: 'onBank' },
+        { label: 'Date/Time', value: 'submissionDateTime' },
     ];    
 
     useEffect(() => {
@@ -126,7 +128,7 @@ const Admin = () => {
         csvRows.push(headers);
 
         records.forEach(record => {
-            const values = columnsReport.map(col => `"${record[col.value]}"`).join(',');
+            const values = columnsReport.map(col => `"${col.value === 'submissionDateTime' ? new Date(record[col.value]).toLocaleString() : record[col.value]}"`).join(',');
             csvRows.push(values);
         });
 
@@ -263,7 +265,11 @@ const Admin = () => {
                         {records.map(record => (
                             <tr key={record.id} className="bg-white border-b hover:bg-gray-100">
                                 {columns.map(column => (
-                                    <td key={column.value} className="px-4 py-2">{record[column.value]}</td>
+                                    <td key={column.value} className="px-4 py-2">
+                                        {column.value === 'submissionDateTime' 
+                                            ? new Date(record[column.value]).toLocaleString()
+                                            : record[column.value]}
+                                    </td>
                                 ))}
                                 <td className="px-4 py-2 flex justify-center space-x-2">
                                     <button onClick={() => handleDelete(record.id)} className="bg-red-500 hover:bg-red-700 text-white p-1 rounded">
