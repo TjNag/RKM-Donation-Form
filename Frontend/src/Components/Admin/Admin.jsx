@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
-import { FaTrash, FaSync, FaPrint, FaEdit } from 'react-icons/fa';
+import { FaTrash, FaSync } from 'react-icons/fa';
+import { VscVerified, VscUnverified } from 'react-icons/vsc';
 import { saveAs } from 'file-saver';
 import 'react-toastify/dist/ReactToastify.css';
 import 'tailwindcss/tailwind.css';
@@ -22,6 +23,7 @@ const Admin = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [startDate, setStartDate] = useState(null);
     const [endDate, setEndDate] = useState(null);
+    const [showUnaccepted, setShowUnaccepted] = useState(false);
     const [modalData, setModalData] = useState({
         newUsername: '',
         newPassword: '',
@@ -73,7 +75,7 @@ const Admin = () => {
         return () => {
             debouncedFetchRecords.cancel();
         };
-    }, [isLoggedIn, searchColumn, searchTerm, startDate, endDate]);
+    }, [isLoggedIn, searchColumn, searchTerm, startDate, endDate, showUnaccepted]);
 
     const fetchRecords = async () => {
         setIsLoading(true);
@@ -84,6 +86,7 @@ const Admin = () => {
                     value: searchTerm,
                     startDate: startDate ? startDate.toISOString().split('T')[0] : null,
                     endDate: endDate ? endDate.toISOString().split('T')[0] : null,
+                    showUnaccepted: showUnaccepted ? 1 : 0,
                 },
             });
             setRecords(data);
@@ -93,7 +96,29 @@ const Admin = () => {
         setIsLoading(false);
     };
 
-    const debouncedFetchRecords = useCallback(debounce(fetchRecords, 300), [searchColumn, searchTerm, startDate, endDate]);
+    const debouncedFetchRecords = useCallback(debounce(fetchRecords, 300), [searchColumn, searchTerm, startDate, endDate, showUnaccepted]);
+
+    const debouncedFetchUnacceptedRecords = useCallback(debounce(() => {
+        setShowUnaccepted(true);
+        fetchRecords();
+    }, 300), [searchColumn, searchTerm, startDate, endDate]);
+
+    const handleAcceptRecord = async (id) => {
+        try {
+            const response = await axios.post(`http://localhost:8081/api/update-acceptance`, { id });
+            if (response.data.success) {
+                toast.success('Record accepted successfully');
+                // Update the local state to reflect the change
+                setRecords(records.map(record =>
+                    record.id === id ? { ...record, isAccepted: 1 } : record
+                ));
+            } else {
+                toast.error('Failed to accept the record');
+            }
+        } catch (error) {
+            toast.error('An error occurred while accepting the record');
+        }
+    };    
 
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this record?')) {
@@ -165,6 +190,16 @@ const Admin = () => {
         setIsModalOpen(true);
     };
 
+    const handleRadioChange = (e) => {
+        const value = e.target.value;
+        if (value === 'unaccepted') {
+            debouncedFetchUnacceptedRecords();
+        } else {
+            setShowUnaccepted(false);
+            debouncedFetchRecords();
+        }
+    };
+
     if (!isLoggedIn) {
         return (
             <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
@@ -202,7 +237,7 @@ const Admin = () => {
                 <img src={logo} alt="Logo" className="w-24 h-24" />
             </div>
             <h1 className="text-2xl font-semibold text-center mb-4">Admin Dashboard</h1>
-            <div className="flex items-center justify-center space-x-2 mb-4">
+            <div className="flex items-center justify-center space-x-2">
                 <DatePicker
                     selected={startDate}
                     onChange={(date) => setStartDate(date)}
@@ -245,9 +280,33 @@ const Admin = () => {
                 <button onClick={handleDownloadCsv} className="bg-green-500 hover:bg-green-700 text-white p-2 rounded">
                     Report
                 </button>
+            </div>
+            <br />
+            <div className="mb-4 flex items-center space-x-10">
                 <button onClick={openModal} className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded">
                     Add User
                 </button>
+                <div className="mt-2 flex items-center">
+                    <label className="mr-4">
+                        <input
+                            type="radio"
+                            name="filter"
+                            value="all"
+                            defaultChecked
+                            onChange={handleRadioChange}
+                        />
+                        Show all
+                    </label>
+                    <label>
+                        <input
+                            type="radio"
+                            name="filter"
+                            value="unaccepted"
+                            onChange={handleRadioChange}
+                        />
+                        Show only unaccepted
+                    </label>
+                </div>
             </div>
             {isLoading ? (
                 <p className="text-center">Loading...</p>
@@ -275,6 +334,14 @@ const Admin = () => {
                                     <button onClick={() => handleDelete(record.id)} className="bg-red-500 hover:bg-red-700 text-white p-1 rounded">
                                         <FaTrash />
                                     </button>
+                                    {record.isAccepted === 0 && (
+                                        <button
+                                            onClick={() => handleAcceptRecord(record.id)}
+                                            className="bg-green-500 hover:bg-green-700 text-white p-1 rounded"
+                                        >
+                                            <VscVerified />
+                                        </button>
+                                    )}
                                 </td>
                             </tr>
                         ))}

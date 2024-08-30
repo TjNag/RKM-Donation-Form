@@ -75,12 +75,14 @@ const Form = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
+  const timerRef = useRef();
+
   useEffect(() => {
     let timer;
   
     const resetTimer = () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
+      clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
         handleLogout();
         window.location.reload();
         toast.warning('Logged out due to inactivity.');
@@ -262,6 +264,9 @@ const Form = () => {
         finalPurpose = formData.purposeOfDonation.replace('(Please Specify)', `(${formData.specifyPurpose})`);
       }
 
+      // Determine the isAccepted value
+      const isAccepted = formData.donationMethod === 'Cheque' || formData.donationMethod === 'Bank Transfer (PoS)' ? 1 : 0;
+
       try {
         // Submit the form and get the new record id and date
         const response = await fetch('http://localhost:8081/api/submit-form', {
@@ -269,7 +274,7 @@ const Form = () => {
           headers: {
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ ...formData, purposeOfDonation: finalPurpose, submittedby_user: loggedInUser }),
+          body: JSON.stringify({ ...formData, purposeOfDonation: finalPurpose, submittedby_user: loggedInUser, isAccepted }),
         });
 
         if (response.ok) {
@@ -348,9 +353,10 @@ const Form = () => {
 
   const handleReportRequest = async () => {
     try {
-      const formattedStartTime = startTime || '00:00'; // Default to 00:00 if not provided
-      const formattedEndTime = endTime || '23:59'; // Default to 23:59 if not provided
-      const response = await fetch(`http://localhost:8081/api/user-records-by-datetime?username=${loggedInUser}&startDate=${startDate}&startTime=${formattedStartTime}&endDate=${endDate}&endTime=${formattedEndTime}`);
+      // const formattedStartTime = startTime || '00:00'; // Default to 00:00 if not provided
+      // const formattedEndTime = endTime || '23:59'; // Default to 23:59 if not provided
+      const response = await fetch(`http://localhost:8081/api/records?column=submittedby_user&value=${loggedInUser}&showUnaccepted=1`);
+      // const response = await fetch(`http://localhost:8081/api/unaccepted-records`);
       if (response.ok) {
         const data = await response.json();
         // Calculate the Sub Total
@@ -358,6 +364,7 @@ const Form = () => {
         setSubTotal(total);
         setReportData(data);
         setShowReportDataModal(true); // Show the report data modal
+        console.log("Report data modal should be visible now.");
         toast.success('Report fetched successfully!');
       } else {
         toast.error('Failed to fetch the report.');
@@ -400,7 +407,7 @@ const Form = () => {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.setAttribute('download', `report_${startDate}_to_${endDate}.csv`);
+    link.setAttribute('download', `report.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -428,7 +435,8 @@ const Form = () => {
       <div className="flex justify-between items-center mb-6">
         <button 
           className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
-          onClick={openReportModal}
+          // onClick={openReportModal}
+          onClick={handleReportRequest}
         >
           View Report
         </button>
@@ -722,7 +730,7 @@ const Form = () => {
       </Modal>
 
       {/* Report Modal */}
-      <Modal
+      {/* <Modal
         isOpen={showReportModal}
         onRequestClose={closeReportModal}
         contentLabel="View Report Modal"
@@ -798,7 +806,7 @@ const Form = () => {
             </div>
           </form>
         </div>
-      </Modal>
+      </Modal> */}
 
       {/* Report Data Modal */}
       <Modal

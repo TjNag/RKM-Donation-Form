@@ -107,7 +107,7 @@ app.post('/api/submit-form', async (req, res, next) => {
     const {
         submittedby_user, name, address, district, city, state, pinCode, mobileNo,
         altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount,
-        chequeNo, dated, onBank
+        chequeNo, dated, onBank, isAccepted
     } = req.body;
     
     if (!submittedby_user) {
@@ -128,22 +128,23 @@ app.post('/api/submit-form', async (req, res, next) => {
         sql = `INSERT INTO billingrecords (
             submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo, 
             email, idType, idNo, purposeOfDonation, donationMethod, amount, chequeNo, dated, onBank, 
-            submissionDateTime
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`;
+            isAccepted, submissionDateTime
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`;
 
         params = [
             submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo,
-            email, idType, idNo, purposeOfDonation, donationMethod, amount, chequeNo, dated, onBank
+            email, idType, idNo, purposeOfDonation, donationMethod, amount, chequeNo, dated, onBank,
+            isAccepted
         ];
     } else {
         sql = `INSERT INTO billingrecords (
             submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo, 
-            email, idType, idNo, purposeOfDonation, donationMethod, amount, submissionDateTime
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`;
+            email, idType, idNo, purposeOfDonation, donationMethod, amount, isAccepted, submissionDateTime
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`;
 
         params = [
             submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo,
-            email, idType, idNo, purposeOfDonation, donationMethod, amount
+            email, idType, idNo, purposeOfDonation, donationMethod, amount, isAccepted
         ];
     }
 
@@ -171,7 +172,7 @@ app.post('/api/update-receipt-id', async (req, res, next) => {
 
 // GET endpoint to fetch all records with optional filters, including date range
 app.get('/api/records', async (req, res, next) => {
-    const { column, value, startDate, endDate } = req.query;
+    const { column, value, startDate, endDate, showUnaccepted } = req.query;
     let sql = 'SELECT * FROM billingrecords WHERE 1=1';
     const filters = [];
     const adjustedStartDate = new Date(new Date(startDate).setDate(new Date(startDate).getDate() + 1));
@@ -192,9 +193,72 @@ app.get('/api/records', async (req, res, next) => {
         filters.push(adjustedEndDate);
     }
 
+    if (showUnaccepted && parseInt(showUnaccepted, 10) === 1) {
+        sql += ' AND isAccepted = 0';
+    }
+
     try {
         const results = await query(sql, filters);
         res.json(results);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// DELETE endpoint to delete a record by ID
+app.delete('/api/delete-record/:id', async (req, res, next) => {
+    const { id } = req.params;
+    const sql = 'DELETE FROM billingrecords WHERE id = ?';
+    try {
+        await query(sql, [id]);
+        res.status(200).send('Record deleted successfully');
+    } catch (err) {
+        next(err);
+    }
+});
+
+// DELETE endpoint to delete multiple records by IDs
+app.delete('/api/delete-records', async (req, res, next) => {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).send('No records selected for deletion');
+    }
+
+    const sql = 'DELETE FROM billingrecords WHERE id IN (?)';
+    try {
+        await query(sql, [ids]);
+        res.status(200).send('Records deleted successfully');
+    } catch (err) {
+        next(err);
+    }
+});
+
+// Fetch and format bill details for printing
+app.get('/api/print-bill/:id', async (req, res, next) => {
+    const { id } = req.params;
+    const sql = 'SELECT * FROM billingrecords WHERE id = ?';
+    try {
+        const result = await query(sql, [id]);
+        if (result.length === 0) {
+            res.status(404).send('Bill not found');
+            return;
+        }
+        const bill = result[0];
+        const html = `
+            <html>
+            <head>
+                <title>Print Bill ID: ${bill.id}</title>
+            </head>
+            <body>
+                <h1>Bill Details</h1>
+                <p>Name: ${bill.name}</p>
+                <p>Address: ${bill.address}</p>
+                <p>Amount: ${bill.amount}</p>
+                <!-- Add more fields as needed -->
+            </body>
+            </html>
+        `;
+        res.send(html);
     } catch (err) {
         next(err);
     }
@@ -281,60 +345,12 @@ app.get('/api/download-records', async (req, res, next) => {
     }
 });
 
-// DELETE endpoint to delete a record by ID
-app.delete('/api/delete-record/:id', async (req, res, next) => {
-    const { id } = req.params;
-    const sql = 'DELETE FROM billingrecords WHERE id = ?';
+app.post('/api/update-acceptance', async (req, res, next) => {
+    const { id } = req.body;
+    const sql = 'UPDATE billingrecords SET isAccepted = 1 WHERE id = ?';
     try {
         await query(sql, [id]);
-        res.status(200).send('Record deleted successfully');
-    } catch (err) {
-        next(err);
-    }
-});
-
-// DELETE endpoint to delete multiple records by IDs
-app.delete('/api/delete-records', async (req, res, next) => {
-    const { ids } = req.body;
-    if (!Array.isArray(ids) || ids.length === 0) {
-        return res.status(400).send('No records selected for deletion');
-    }
-
-    const sql = 'DELETE FROM billingrecords WHERE id IN (?)';
-    try {
-        await query(sql, [ids]);
-        res.status(200).send('Records deleted successfully');
-    } catch (err) {
-        next(err);
-    }
-});
-
-// Fetch and format bill details for printing
-app.get('/api/print-bill/:id', async (req, res, next) => {
-    const { id } = req.params;
-    const sql = 'SELECT * FROM billingrecords WHERE id = ?';
-    try {
-        const result = await query(sql, [id]);
-        if (result.length === 0) {
-            res.status(404).send('Bill not found');
-            return;
-        }
-        const bill = result[0];
-        const html = `
-            <html>
-            <head>
-                <title>Print Bill ID: ${bill.id}</title>
-            </head>
-            <body>
-                <h1>Bill Details</h1>
-                <p>Name: ${bill.name}</p>
-                <p>Address: ${bill.address}</p>
-                <p>Amount: ${bill.amount}</p>
-                <!-- Add more fields as needed -->
-            </body>
-            </html>
-        `;
-        res.send(html);
+        res.json({ success: true });
     } catch (err) {
         next(err);
     }
