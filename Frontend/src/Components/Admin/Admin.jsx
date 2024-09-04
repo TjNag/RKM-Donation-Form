@@ -2,8 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
 import { FaTrash, FaSync } from 'react-icons/fa';
-import { VscVerified, VscUnverified } from 'react-icons/vsc';
-import { saveAs } from 'file-saver';
+import { VscVerified } from 'react-icons/vsc';
 import 'react-toastify/dist/ReactToastify.css';
 import 'tailwindcss/tailwind.css';
 import logo from '../../assets/logo.png';
@@ -31,6 +30,9 @@ const Admin = () => {
         isUpdate: false,
         updateUser: '',
     });
+    const [isViewUserModalOpen, setIsViewUserModalOpen] = useState(false);
+    const [users, setUsers] = useState([]);
+    const [selectedRows, setSelectedRows] = useState([]);
 
     const columns = [
         { label: 'Cashier', value: 'submittedby_user' },
@@ -66,7 +68,19 @@ const Admin = () => {
         { label: 'Dated', value: 'dated' },
         { label: 'On Bank', value: 'onBank' },
         { label: 'Date/Time', value: 'submissionDateTime' },
-    ];    
+    ];
+
+    useEffect(() => {
+        const checkLoginStatus = async () => {
+            try {
+                const { data } = await axios.get('http://localhost:8081/api/check-login');
+                setIsLoggedIn(data.isLoggedIn);
+            } catch (error) {
+                toast.error('Failed to check login status');
+            }
+        };
+        checkLoginStatus();
+    }, []);
 
     useEffect(() => {
         if (isLoggedIn) {
@@ -118,7 +132,7 @@ const Admin = () => {
         } catch (error) {
             toast.error('An error occurred while accepting the record');
         }
-    };    
+    };
 
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this record?')) {
@@ -129,6 +143,39 @@ const Admin = () => {
             } catch (error) {
                 toast.error('Failed to delete record');
             }
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (window.confirm('Are you sure you want to delete the selected records?')) {
+            try {
+                await axios.delete(`http://localhost:8081/api/delete-records`, {
+                    data: { ids: selectedRows },
+                });
+                setRecords(records.filter(record => !selectedRows.includes(record.id)));
+                setSelectedRows([]);
+                toast.success('Records deleted successfully');
+            } catch (error) {
+                toast.error('Failed to delete records');
+            }
+        }
+    };
+
+    const handleBulkAccept = async () => {
+        try {
+            await Promise.all(selectedRows.map(async (id) => {
+                const response = await axios.post(`http://localhost:8081/api/update-acceptance`, { id });
+                if (!response.data.success) {
+                    throw new Error('Failed to accept record');
+                }
+            }));
+            setRecords(records.map(record => 
+                selectedRows.includes(record.id) ? { ...record, isAccepted: 1 } : record
+            ));
+            setSelectedRows([]);
+            toast.success('Records accepted successfully');
+        } catch (error) {
+            toast.error('Failed to accept records');
         }
     };
 
@@ -200,6 +247,37 @@ const Admin = () => {
         }
     };
 
+    const fetchUsers = async () => {
+        try {
+            const { data } = await axios.get(`http://localhost:8081/api/get-users`);
+            setUsers(data);
+        } catch (err) {
+            toast.error('Failed to fetch users');
+        }
+    };
+
+    useEffect(() => {
+        if (isViewUserModalOpen) {
+            fetchUsers();
+        }
+    }, [isViewUserModalOpen]);
+
+    const handleDeleteUser = async (username) => {
+        if (window.confirm('Are you sure you want to delete this user?')) {
+            try {
+                const response = await axios.delete(`http://localhost:8081/api/delete-user/${username}`);
+                if (response.data.success) {
+                    setUsers(users.filter(user => user.username !== username));
+                    toast.success('User deleted successfully');
+                } else {
+                    toast.error(response.data.message);
+                }
+            } catch (error) {
+                toast.error('Failed to delete user');
+            }
+        }
+    };
+
     if (!isLoggedIn) {
         return (
             <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
@@ -233,8 +311,18 @@ const Admin = () => {
 
     return (
         <div className="container mx-auto p-4">
-            <div className="flex justify-center items-center mb-4">
-                <img src={logo} alt="Logo" className="w-24 h-24" />
+            <ToastContainer />
+            <div className="flex justify-between items-center mb-4">
+                <div className="flex justify-center items-center">
+                    <img src={logo} alt="Logo" className="w-24 h-24" />
+                </div>
+                <div className="flex justify-center items-center">
+                    {isLoggedIn ? (
+                        <p className="text-green-500">User is logged in</p>
+                    ) : (
+                        <p className="text-red-500">User is not logged in</p>
+                    )}
+                </div>
             </div>
             <h1 className="text-2xl font-semibold text-center mb-4">Admin Dashboard</h1>
             <div className="flex items-center justify-center space-x-2">
@@ -283,8 +371,22 @@ const Admin = () => {
             </div>
             <br />
             <div className="mb-4 flex items-center space-x-10">
-                <button onClick={openModal} className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded">
-                    Add User
+                <button onClick={() => setIsViewUserModalOpen(true)} className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded">
+                    View Users
+                </button>
+                <button
+                    onClick={handleBulkDelete}
+                    disabled={selectedRows.length === 0}
+                    className="bg-red-500 hover:bg-red-700 text-white p-2 rounded"
+                >
+                    Delete Selected
+                </button>
+                <button
+                    onClick={handleBulkAccept}
+                    disabled={selectedRows.length === 0}
+                    className="bg-green-500 hover:bg-green-700 text-white p-2 rounded"
+                >
+                    Accept Selected
                 </button>
                 <div className="mt-2 flex items-center">
                     <label className="mr-4">
@@ -314,6 +416,19 @@ const Admin = () => {
                 <table className="min-w-full table-auto text-center">
                     <thead className="bg-gradient-to-r from-teal-500 to-green-500 text-white">
                         <tr>
+                            <th className="px-4 py-2">
+                                <input
+                                    type="checkbox"
+                                    checked={selectedRows.length === records.length}
+                                    onChange={(e) => {
+                                        if (e.target.checked) {
+                                            setSelectedRows(records.map(record => record.id));
+                                        } else {
+                                            setSelectedRows([]);
+                                        }
+                                    }}
+                                />
+                            </th>
                             {columns.map(column => (
                                 <th key={column.value} className="px-4 py-2">{column.label}</th>
                             ))}
@@ -323,6 +438,19 @@ const Admin = () => {
                     <tbody>
                         {records.map(record => (
                             <tr key={record.id} className="bg-white border-b hover:bg-gray-100">
+                                <td className="px-4 py-2">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedRows.includes(record.id)}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setSelectedRows([...selectedRows, record.id]);
+                                            } else {
+                                                setSelectedRows(selectedRows.filter(id => id !== record.id));
+                                            }
+                                        }}
+                                    />
+                                </td>
                                 {columns.map(column => (
                                     <td key={column.value} className="px-4 py-2">
                                         {column.value === 'submissionDateTime' 
@@ -354,7 +482,7 @@ const Admin = () => {
                 onRequestClose={() => setIsModalOpen(false)}
                 contentLabel="Add/Update User"
                 ariaHideApp={false}
-                className="modal bg-white rounded-lg p-6 max-w-lg mx-auto mt-24 shadow-lg"
+                className="modal bg-white rounded-lg p-6 max-w-lg mx-auto mt-24 shadow-lg z-50"
             >
                 <h2 className="text-2xl font-semibold text-center mb-4">{modalData.isUpdate ? 'Update User' : 'Add New User'}</h2>
                 <form onSubmit={handleModalSubmit}>
@@ -400,7 +528,44 @@ const Admin = () => {
                 </form>
             </Modal>
 
-            <ToastContainer />
+            <Modal
+                isOpen={isViewUserModalOpen}
+                onRequestClose={() => setIsViewUserModalOpen(false)}
+                contentLabel="View Users"
+                ariaHideApp={false}
+                className="modal bg-white rounded-lg p-6 max-w-lg mx-auto mt-24 shadow-lg"
+            >
+                <h2 className="text-2xl font-semibold text-center mb-4">Admin Users</h2>
+                <button onClick={openModal} className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded">
+                    Add User
+                </button>
+                <table className="min-w-full table-auto text-center mt-4">
+                    <thead className="bg-gradient-to-r from-teal-500 to-green-500 text-white">
+                        <tr>
+                            <th className="px-4 py-2">Username</th>
+                            <th className="px-4 py-2">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {users.map(user => (
+                            <tr key={user.username} className="bg-white border-b hover:bg-gray-100">
+                                <td className="px-4 py-2">{user.username}</td>
+                                <td className="px-4 py-2 flex justify-center space-x-2">
+                                    <button
+                                        onClick={() => handleDeleteUser(user.username)}
+                                        className="bg-red-500 hover:bg-red-700 text-white p-1 rounded"
+                                    >
+                                        Delete
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+                <button onClick={() => setIsViewUserModalOpen(false)} className="mt-4 bg-gray-500 hover:bg-gray-700 text-white p-2 rounded">
+                    Close
+                </button>
+            </Modal>
         </div>
     );
 };

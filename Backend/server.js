@@ -286,6 +286,29 @@ app.get('/api/user-records-by-datetime', async (req, res, next) => {
     }
 });
 
+// DELETE endpoint to delete a user by username
+app.delete('/api/delete-user/:username', async (req, res, next) => {
+    const { username } = req.params;
+    const sql = 'DELETE FROM admin_users WHERE username = ?';
+    try {
+        const result = await query(sql, [username]);
+        if (result.affectedRows > 0) {
+            res.status(200).send({ success: true, message: 'User deleted successfully' });
+        } else {
+            res.status(404).send({ success: false, message: 'User not found' });
+        }
+    } catch (err) {
+        next(err);
+    }
+});
+
+// GET endpoint to check if a user is logged in
+app.get('/api/check-login', (req, res) => {
+    const isLoggedIn = req.session ? req.session.isLoggedIn : false;
+    res.json({ isLoggedIn });
+});
+
+
 // GET endpoint to download records as an Excel file
 app.get('/api/download-records', async (req, res, next) => {
     const { column, value, startDate, endDate } = req.query;
