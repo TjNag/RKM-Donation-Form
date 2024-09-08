@@ -20,7 +20,7 @@ const Admin = () => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [startDate, setStartDate] = useState(new Date('September 7, 2001'));
+  const [startDate, setStartDate] = useState(new Date("September 7, 2001"));
   const [endDate, setEndDate] = useState(new Date());
   const [showUnaccepted, setShowUnaccepted] = useState(false);
   const [modalData, setModalData] = useState({
@@ -70,15 +70,13 @@ const Admin = () => {
     { label: "Date/Time", value: "submissionDateTime" },
   ];
 
-//   const url = "http://localhost:8081";
+  //   const url = "http://localhost:8081";
   const url = "https://rkm-donation-form-backend.onrender.com";
 
   useEffect(() => {
     const checkLoginStatus = async () => {
       try {
-        const { data } = await axios.get(
-          url + "/api/check-login"
-        );
+        const { data } = await axios.get(url + "/api/check-login");
         setIsLoggedIn(data.isLoggedIn);
       } catch (error) {
         toast.error("Failed to check login status");
@@ -141,10 +139,7 @@ const Admin = () => {
 
   const handleAcceptRecord = async (id) => {
     try {
-      const response = await axios.post(
-        url + `/api/update-acceptance`,
-        { id }
-      );
+      const response = await axios.post(url + `/api/update-acceptance`, { id });
       if (response.data.success) {
         toast.success("Record accepted successfully");
         // Update the local state to reflect the change
@@ -196,10 +191,9 @@ const Admin = () => {
     try {
       await Promise.all(
         selectedRows.map(async (id) => {
-          const response = await axios.post(
-            url + `/api/update-acceptance`,
-            { id }
-          );
+          const response = await axios.post(url + `/api/update-acceptance`, {
+            id,
+          });
           if (!response.data.success) {
             throw new Error("Failed to accept record");
           }
@@ -222,10 +216,10 @@ const Admin = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post(
-        url + `/api/adminlogin`,
-        { username, password }
-      );
+      const response = await axios.post(url + `/api/adminlogin`, {
+        username,
+        password,
+      });
       if (response.data.success) {
         setIsLoggedIn(true);
         toast.success("Logged in successfully");

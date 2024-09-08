@@ -19,11 +19,11 @@ const pool = new Pool({
 const query = async (sql, params) => {
     const client = await pool.connect();
     try {
-//        console.log('Executing SQL:', sql, 'Params:', params);  // Add logging here
+        //        console.log('Executing SQL:', sql, 'Params:', params);  // Add logging here
         const results = await client.query(sql, params);
         return results.rows;
     } catch (err) {
-//        console.error('Query Failed:', sql, 'Error:', err); // Log detailed error info
+        //        console.error('Query Failed:', sql, 'Error:', err); // Log detailed error info
         throw err;
     } finally {
         client.release();
