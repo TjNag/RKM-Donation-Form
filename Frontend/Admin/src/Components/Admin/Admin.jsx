@@ -386,19 +386,12 @@ const Admin = () => {
   return (
     <div className="container mx-auto p-4">
       <ToastContainer />
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex justify-between items-center">
         <div className="flex justify-center items-center">
           <img src={logo} alt="Logo" className="w-24 h-24" />
         </div>
-        <div className="flex justify-center items-center">
-          {isLoggedIn ? (
-            <p className="text-green-500">User is logged in</p>
-          ) : (
-            <p className="text-red-500">User is not logged in</p>
-          )}
-        </div>
       </div>
-      <h1 className="text-2xl font-semibold text-center mb-4">
+      <h1 className="text-3xl font-semibold text-center mb-4">
         Admin Dashboard
       </h1>
       <div className="flex items-center justify-center space-x-2">

@@ -448,7 +448,22 @@ const Form = () => {
       row.purposeOfDonation,
       row.donationMethod,
       row.amount,
-      new Date(row.submissionDateTime).toLocaleString(),
+      (() => {
+        const date = new Date(row.submissionDateTime);
+        date.setHours(date.getHours() + 5); // Add 5 hours
+        date.setMinutes(date.getMinutes() + 30); // Add 30 minutes
+        return date
+          .toLocaleString("en-GB", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: true,
+          })
+          .replace(",", ""); // Removes the comma between date and time
+      })(),
     ]);
 
     // Add Sub Total row at the end
@@ -850,17 +865,9 @@ const Form = () => {
           }}
         >
           <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md mx-4 transform transition-transform duration-300 ease-out scale-100">
-            <div className="flex justify-between items-center">
-              <h2 className="text-3xl font-bold mb-6 text-center text-gray-800 animate-fadeIn">
-                Login
-              </h2>
-              <button
-                className="text-orange-500 hover:text-orange-600 text-sm font-semibold"
-                onClick={() => (window.location.href = "/admin")}
-              >
-                Go to Admin
-              </button>
-            </div>
+            <h2 className="text-3xl font-bold mb-6 text-center text-gray-800 animate-fadeIn">
+              Login
+            </h2>
             <form onSubmit={handleLogin}>
               <div className="mb-5 animate-fadeInUp">
                 <label
@@ -1043,7 +1050,22 @@ const Form = () => {
                         </td>
                         <td className="border px-4 py-2">{row.amount}</td>
                         <td className="border px-4 py-2">
-                          {new Date(row.submissionDateTime).toLocaleString()}
+                          {(() => {
+                            const date = new Date(row.submissionDateTime);
+                            date.setHours(date.getHours() + 5); // Add 5 hours
+                            date.setMinutes(date.getMinutes() + 30); // Add 30 minutes
+                            return date
+                              .toLocaleString("en-GB", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                second: "2-digit",
+                                hour12: true,
+                              })
+                              .replace(",", ""); // Removes the comma between date and time
+                          })()}
                         </td>
                       </tr>
                     ))
