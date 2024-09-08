@@ -70,8 +70,8 @@ const Admin = () => {
     { label: "Date/Time", value: "submissionDateTime" },
   ];
 
-//   const url = "http://localhost:8081"
-  const url = "https://rkm-donation-form-backend.onrender.com"
+//   const url = "http://localhost:8081";
+  const url = "https://rkm-donation-form-backend.onrender.com";
 
   useEffect(() => {
     const checkLoginStatus = async () => {
