@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const mysql = require('mysql');
+const { Pool } = require('pg'); // Use the pg library to handle PostgreSQL
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 const ExcelJS = require('exceljs');
@@ -10,22 +10,25 @@ const PORT = process.env.PORT || 8081;
 app.use(cors());
 app.use(express.json());
 
-// Establish a MySQL connection pool
-const pool = mysql.createPool({
-    connectionLimit: 10,
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'rkmg_offline_form'
+// Establish a PostgreSQL connection pool
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL || 'postgresql://rkmg_offline_form_owner:m1NK6HtIZTwh@ep-soft-snow-a1awmgcp.ap-southeast-1.aws.neon.tech/rkmg_offline_form?sslmode=require'
 });
 
 // Simple query wrapper to use async/await
-const query = (sql, params) => new Promise((resolve, reject) => {
-    pool.query(sql, params, (err, results) => {
-        if (err) return reject(err);
-        resolve(results);
-    });
-});
+const query = async (sql, params) => {
+    const client = await pool.connect();
+    try {
+//        console.log('Executing SQL:', sql, 'Params:', params);  // Add logging here
+        const results = await client.query(sql, params);
+        return results.rows;
+    } catch (err) {
+//        console.error('Query Failed:', sql, 'Error:', err); // Log detailed error info
+        throw err;
+    } finally {
+        client.release();
+    }
+};
 
 // Centralized error handling middleware
 app.use((err, req, res, next) => {
@@ -46,7 +49,7 @@ app.get('/api/get-users', async (req, res, next) => {
 // adminLogin Endpoint
 app.post('/api/adminlogin', async (req, res, next) => {
     const { username, password } = req.body;
-    const sql = 'SELECT password, user_type FROM admin_users WHERE username = ?';
+    const sql = 'SELECT password, user_type FROM admin_users WHERE username = $1';
     try {
         const results = await query(sql, [username]);
         if (results.length > 0) {
@@ -71,7 +74,7 @@ app.post('/api/adminlogin', async (req, res, next) => {
 // Login Endpoint
 app.post('/api/login', async (req, res, next) => {
     const { username, password } = req.body;
-    const sql = 'SELECT password FROM admin_users WHERE username = ?';
+    const sql = 'SELECT password FROM admin_users WHERE username = $1';
     try {
         const results = await query(sql, [username]);
         if (results.length > 0) {
@@ -93,7 +96,7 @@ app.post('/api/login', async (req, res, next) => {
 app.post('/api/add-user', async (req, res, next) => {
     const { username, password } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
-    const sql = 'INSERT INTO admin_users (username, password) VALUES (?, ?)';
+    const sql = 'INSERT INTO admin_users (username, password) VALUES ($1, $2)';
     try {
         await query(sql, [username, hashedPassword]);
         res.json({ success: true, message: 'User added successfully' });
@@ -102,6 +105,29 @@ app.post('/api/add-user', async (req, res, next) => {
     }
 });
 
+// DELETE endpoint to delete a user by username
+app.delete('/api/delete-user/:username', async (req, res) => {
+    const { username } = req.params;  // Assuming the username to delete is passed in the body of the request.
+
+    if (!username) {
+        return res.status(400).json({ error: 'Username is required' });
+    }
+
+    const sql = 'DELETE FROM admin_users WHERE username = $1 RETURNING username';
+    try {
+        const result = await query(sql, [username]);
+        if (result.length > 0) {
+            res.status(200).json({ success: true, message: 'User deleted successfully', deletedUser: result[0].username });
+        } else {
+            res.status(404).json({ error: 'User not found' });
+        }
+    } catch (err) {
+        console.error('Failed to delete user:', err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
 // POST endpoint to handle form submissions
 app.post('/api/submit-form', async (req, res, next) => {
     const {
@@ -109,7 +135,7 @@ app.post('/api/submit-form', async (req, res, next) => {
         altMobileNo, email, idType, idNo, purposeOfDonation, donationMethod, amount,
         chequeNo, dated, onBank, isAccepted
     } = req.body;
-    
+
     if (!submittedby_user) {
         return res.status(400).send('submittedby_user cannot be empty');
     }
@@ -126,10 +152,10 @@ app.post('/api/submit-form', async (req, res, next) => {
         }
 
         sql = `INSERT INTO billingrecords (
-            submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo, 
-            email, idType, idNo, purposeOfDonation, donationMethod, amount, chequeNo, dated, onBank, 
-            isAccepted, submissionDateTime
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`;
+            submittedby_user, name, address, district, city, state, "pinCode", "mobileNo", "altMobileNo", 
+            email, "idType", "idNo", "purposeOfDonation", "donationMethod", amount, "chequeNo", dated, "onBank", 
+            "isAccepted", "submissionDateTime"
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW())`;
 
         params = [
             submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo,
@@ -138,9 +164,9 @@ app.post('/api/submit-form', async (req, res, next) => {
         ];
     } else {
         sql = `INSERT INTO billingrecords (
-            submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo, 
-            email, idType, idNo, purposeOfDonation, donationMethod, amount, isAccepted, submissionDateTime
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`;
+            submittedby_user, name, address, district, city, state, "pinCode", "mobileNo", "altMobileNo", 
+            email, "idType", "idNo", "purposeOfDonation", "donationMethod", amount, "isAccepted", "submissionDateTime"
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW()) RETURNING id`;
 
         params = [
             submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo,
@@ -150,18 +176,27 @@ app.post('/api/submit-form', async (req, res, next) => {
 
     try {
         const result = await query(sql, params);
-        const newRecordId = result.insertId;
-        const newRecord = await query('SELECT id, submissionDateTime FROM billingrecords WHERE id = ?', [newRecordId]);
-        res.json({ success: true, id: newRecordId, date: newRecord[0].submissionDateTime });
+        const newRecordId = result[0].id;
+        const newRecord = await query('SELECT id, "submissionDateTime" FROM billingrecords WHERE id = $1', [newRecordId]);
+
+        // Assuming the server is in UTC and the date in the DB is stored in UTC
+        const dateInIST = new Date(newRecord[0].submissionDateTime);
+        dateInIST.setHours(dateInIST.getHours() + 5);  // Offset for IST (+5:30 from UTC)
+        dateInIST.setMinutes(dateInIST.getMinutes() + 30);
+
+        const formattedDate = dateInIST.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+        res.json({ success: true, id: newRecordId, date: formattedDate });
     } catch (err) {
         next(err);
     }
+
 });
 
 // POST endpoint to update the receiptId after generating it
 app.post('/api/update-receipt-id', async (req, res, next) => {
     const { id, receiptId } = req.body;
-    const sql = 'UPDATE billingrecords SET receiptId = ? WHERE id = ?';
+    const sql = 'UPDATE billingrecords SET "receiptId" = $1 WHERE id = $2';
     try {
         await query(sql, [receiptId, id]);
         res.json({ success: true });
@@ -175,27 +210,39 @@ app.get('/api/records', async (req, res, next) => {
     const { column, value, startDate, endDate, showUnaccepted } = req.query;
     let sql = 'SELECT * FROM billingrecords WHERE 1=1';
     const filters = [];
-    const adjustedStartDate = new Date(new Date(startDate).setDate(new Date(startDate).getDate() + 1));
-    const adjustedEndDate = new Date(new Date(endDate).setDate(new Date(endDate).getDate() + 1));
 
-    if (column && value) {
-        sql += ` AND ${mysql.escapeId(column)} LIKE ?`;
+    if (column && value && value.trim() !== '') {
+        sql += ` AND "${column}" LIKE $1`;
         filters.push(`%${value}%`);
     }
 
-    if (startDate) {
-        sql += ' AND DATE(submissionDateTime) >= ?';
-        filters.push(adjustedStartDate);
-    }
+    if (startDate && endDate) {
+        const startDay = new Date(startDate);
+        const endDay = new Date(endDate);
 
-    if (endDate) {
-        sql += ' AND DATE(submissionDateTime) <= ?';
-        filters.push(adjustedEndDate);
+        // Set startDay to beginning of the day
+        startDay.setHours(0, 0, 0, 0);
+
+        // Set endDay to end of the day
+        endDay.setHours(23, 59, 59, 999);
+
+        // Convert to ISO strings that PostgreSQL can interpret correctly
+        const startDayIso = startDay.toISOString();
+        const endDayIso = endDay.toISOString();
+
+        if (column && value && value.trim() !== '') {
+            sql += ` AND "submissionDateTime" BETWEEN $2::timestamp AND $3::timestamp`;
+            filters.push(`%${value}%`, startDayIso, endDayIso);  // Ensure this aligns with the number of placeholders
+        } else {
+            sql += ` AND "submissionDateTime" BETWEEN $1::timestamp AND $2::timestamp`;
+            filters.push(startDayIso, endDayIso);
+        }
     }
 
     if (showUnaccepted && parseInt(showUnaccepted, 10) === 1) {
-        sql += ' AND isAccepted = 0';
+        sql += ' AND "isAccepted" = 0';
     }
+    sql += ' ORDER BY "submissionDateTime" desc';
 
     try {
         const results = await query(sql, filters);
@@ -208,7 +255,7 @@ app.get('/api/records', async (req, res, next) => {
 // DELETE endpoint to delete a record by ID
 app.delete('/api/delete-record/:id', async (req, res, next) => {
     const { id } = req.params;
-    const sql = 'DELETE FROM billingrecords WHERE id = ?';
+    const sql = 'DELETE FROM billingrecords WHERE id = $1';
     try {
         await query(sql, [id]);
         res.status(200).send('Record deleted successfully');
@@ -224,7 +271,7 @@ app.delete('/api/delete-records', async (req, res, next) => {
         return res.status(400).send('No records selected for deletion');
     }
 
-    const sql = 'DELETE FROM billingrecords WHERE id IN (?)';
+    const sql = 'DELETE FROM billingrecords WHERE id = ANY($1)';
     try {
         await query(sql, [ids]);
         res.status(200).send('Records deleted successfully');
@@ -233,62 +280,10 @@ app.delete('/api/delete-records', async (req, res, next) => {
     }
 });
 
-// Fetch and format bill details for printing
-app.get('/api/print-bill/:id', async (req, res, next) => {
-    const { id } = req.params;
-    const sql = 'SELECT * FROM billingrecords WHERE id = ?';
-    try {
-        const result = await query(sql, [id]);
-        if (result.length === 0) {
-            res.status(404).send('Bill not found');
-            return;
-        }
-        const bill = result[0];
-        const html = `
-            <html>
-            <head>
-                <title>Print Bill ID: ${bill.id}</title>
-            </head>
-            <body>
-                <h1>Bill Details</h1>
-                <p>Name: ${bill.name}</p>
-                <p>Address: ${bill.address}</p>
-                <p>Amount: ${bill.amount}</p>
-                <!-- Add more fields as needed -->
-            </body>
-            </html>
-        `;
-        res.send(html);
-    } catch (err) {
-        next(err);
-    }
-});
-
-// GET endpoint to fetch records of a specific user between a start date/time and end date/time
-app.get('/api/user-records-by-datetime', async (req, res, next) => {
-    const { username, startDate, startTime, endDate, endTime } = req.query;
-
-    // Combine the date and time to create datetime strings
-    const startDateTime = `${startDate} ${startTime}`;
-    const endDateTime = `${endDate} ${endTime}`;
-
-    const sql = `
-        SELECT receiptId, name, mobileNo, idType, idNo, purposeOfDonation, donationMethod, amount, submissionDateTime
-        FROM billingrecords
-        WHERE submittedby_user = ? AND submissionDateTime BETWEEN ? AND ?
-    `;
-
-    try {
-        const results = await query(sql, [username, startDateTime, endDateTime]);
-        res.json(results);
-    } catch (err) {
-        next(err);
-    }
-});
-
 app.post('/api/update-acceptance', async (req, res, next) => {
     const { id } = req.body;
-    const sql = 'UPDATE billingrecords SET isAccepted = 1 WHERE id = ?';
+    const isAccepted = req.body.isAccepted ? 1 : 0;
+    const sql = 'UPDATE billingrecords SET "isAccepted" = 1 WHERE id = $1';
     try {
         await query(sql, [id]);
         res.json({ success: true });

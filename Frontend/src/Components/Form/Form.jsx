@@ -77,6 +77,8 @@ const Form = () => {
 
   const timerRef = useRef();
 
+  const url = 'http://localhost:8081';
+
   useEffect(() => {
     let timer;
   
@@ -114,7 +116,7 @@ const Form = () => {
   }, [loggedInUser]);  
 
   useEffect(() => {
-    fetch('http://localhost:8081/api/get-users')
+    fetch(url + '/api/get-users')
       .then(response => response.json())
       .then(data => setUserOptions(data))
       .catch(error => toast.error('Failed to fetch users'));
@@ -124,7 +126,7 @@ const Form = () => {
     e.preventDefault();
     if (username && password) {
       try {
-        const response = await fetch('http://localhost:8081/api/login', {
+        const response = await fetch(url + '/api/login', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -269,7 +271,7 @@ const Form = () => {
 
       try {
         // Submit the form and get the new record id and date
-        const response = await fetch('http://localhost:8081/api/submit-form', {
+        const response = await fetch(url + '/api/submit-form', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -301,7 +303,7 @@ const Form = () => {
             const receiptId = `${financialYear}/${receiptPrefix}/${result.id.toString().padStart(10, '0')}`;            
 
           // Update the receiptId in the database
-          await fetch(`http://localhost:8081/api/update-receipt-id`, {
+          await fetch(url + `/api/update-receipt-id`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -355,8 +357,8 @@ const Form = () => {
     try {
       // const formattedStartTime = startTime || '00:00'; // Default to 00:00 if not provided
       // const formattedEndTime = endTime || '23:59'; // Default to 23:59 if not provided
-      const response = await fetch(`http://localhost:8081/api/records?column=submittedby_user&value=${loggedInUser}&showUnaccepted=1`);
-      // const response = await fetch(`http://localhost:8081/api/unaccepted-records`);
+      const response = await fetch(url + `/api/records?column=submittedby_user&value=${loggedInUser}&showUnaccepted=1`);
+      // const response = await fetch(url + `/api/unaccepted-records`);
       if (response.ok) {
         const data = await response.json();
         // Calculate the Sub Total
