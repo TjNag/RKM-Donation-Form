@@ -79,8 +79,8 @@ const Form = () => {
 
   const timerRef = useRef();
 
-  // const url = 'http://localhost:8081';
-  const url = "https://rkm-donation-form-backend.onrender.com";
+  const url = 'http://localhost:8081';
+  // const url = "https://rkm-donation-form-backend.onrender.com";
 
   useEffect(() => {
     let timer;
@@ -352,7 +352,7 @@ const Form = () => {
           setFormData((prevState) => ({
             ...prevState,
             id: result.id,
-            date: new Date(result.date).toLocaleDateString("en-GB"),
+            date: new Date(result.date).toLocaleDateString("en-IN"),
             receiptId,
           }));
           setButtonText("Print Receipt");

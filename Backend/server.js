@@ -12,18 +12,18 @@ app.use(express.json());
 
 // Establish a PostgreSQL connection pool
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://rkmg_offline_form_owner:m1NK6HtIZTwh@ep-soft-snow-a1awmgcp.ap-southeast-1.aws.neon.tech/rkmg_offline_form?sslmode=require'
+    connectionString: process.env.DATABASE_URL || 'postgresql://postgres.qrqrxpjovdcsywygrjom:rkmg_offline_form@2024@aws-0-ap-south-1.pooler.supabase.com:6543/postgres'
 });
 
 // Simple query wrapper to use async/await
 const query = async (sql, params) => {
     const client = await pool.connect();
     try {
-        //        console.log('Executing SQL:', sql, 'Params:', params);  // Add logging here
+        // console.log('Executing SQL:', sql, 'Params:', params);  // Add logging here
         const results = await client.query(sql, params);
         return results.rows;
     } catch (err) {
-        //        console.error('Query Failed:', sql, 'Error:', err); // Log detailed error info
+        // console.error('Query Failed:', sql, 'Error:', err); // Log detailed error info
         throw err;
     } finally {
         client.release();
@@ -155,7 +155,7 @@ app.post('/api/submit-form', async (req, res, next) => {
             submittedby_user, name, address, district, city, state, "pinCode", "mobileNo", "altMobileNo", 
             email, "idType", "idNo", "purposeOfDonation", "donationMethod", amount, "chequeNo", dated, "onBank", 
             "isAccepted", "submissionDateTime"
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW())`;
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, NOW()) RETURNING id`;
 
         params = [
             submittedby_user, name, address, district, city, state, pinCode, mobileNo, altMobileNo,
@@ -211,38 +211,46 @@ app.get('/api/records', async (req, res, next) => {
     let sql = 'SELECT * FROM billingrecords WHERE 1=1';
     const filters = [];
 
+    // Debugging log to check received query parameters
+    // console.log('Received query params:', { column, value, startDate, endDate, showUnaccepted });
+
+    // Filter by column and value if provided
     if (column && value && value.trim() !== '') {
         sql += ` AND "${column}" LIKE $1`;
         filters.push(`%${value}%`);
     }
 
+    // Filter by date range if both startDate and endDate are provided
     if (startDate && endDate) {
         const startDay = new Date(startDate);
         const endDay = new Date(endDate);
 
-        // Set startDay to beginning of the day
+        // Set startDay to the beginning of the day and endDay to the end of the day
         startDay.setHours(0, 0, 0, 0);
-
-        // Set endDay to end of the day
         endDay.setHours(23, 59, 59, 999);
 
-        // Convert to ISO strings that PostgreSQL can interpret correctly
         const startDayIso = startDay.toISOString();
         const endDayIso = endDay.toISOString();
 
-        if (column && value && value.trim() !== '') {
-            sql += ` AND "submissionDateTime" BETWEEN $2::timestamp AND $3::timestamp`;
-            filters.push(`%${value}%`, startDayIso, endDayIso);  // Ensure this aligns with the number of placeholders
+        // Adjust the position of date filters based on whether value filtering is also applied
+        if (filters.length > 0) {
+            sql += ` AND "submissionDateTime" BETWEEN $${filters.length + 1}::timestamp AND $${filters.length + 2}::timestamp`;
         } else {
             sql += ` AND "submissionDateTime" BETWEEN $1::timestamp AND $2::timestamp`;
-            filters.push(startDayIso, endDayIso);
         }
+        filters.push(startDayIso, endDayIso);
     }
 
+    // Filter by unaccepted records if the flag is provided
     if (showUnaccepted && parseInt(showUnaccepted, 10) === 1) {
         sql += ' AND "isAccepted" = 0';
     }
+
+    // Order by submissionDateTime in descending order
     sql += ' ORDER BY "submissionDateTime" desc';
+
+    // Debugging log to check the final SQL query and filters
+    // console.log('SQL Query:', sql, 'Filters:', filters);
 
     try {
         const results = await query(sql, filters);

@@ -70,8 +70,8 @@ const Admin = () => {
     { label: "Date/Time", value: "submissionDateTime" },
   ];
 
-  //   const url = "http://localhost:8081";
-  const url = "https://rkm-donation-form-backend.onrender.com";
+  const url = "http://localhost:8081";
+  // const url = "https://rkm-donation-form-backend.onrender.com";
 
   useEffect(() => {
     const checkLoginStatus = async () => {
@@ -104,6 +104,16 @@ const Admin = () => {
 
   const fetchRecords = async () => {
     setIsLoading(true);
+
+    // Debugging log to inspect the search parameters
+    // console.log('Fetching records with:', {
+    //   column: searchColumn,
+    //   value: searchTerm,
+    //   startDate: startDate.toISOString(),
+    //   endDate: endDate.toISOString(),
+    //   showUnaccepted: showUnaccepted ? 1 : 0,
+    // });
+
     try {
       const { data } = await axios.get(url + `/api/records`, {
         params: {
@@ -114,8 +124,12 @@ const Admin = () => {
           showUnaccepted: showUnaccepted ? 1 : 0,
         },
       });
+
+      // Debugging log to check the fetched data
+      // console.log('Fetched records:', data);
       setRecords(data);
     } catch (error) {
+      // console.error('Error fetching records:', error);
       toast.error("Failed to fetch records");
     }
     setIsLoading(false);
@@ -235,14 +249,30 @@ const Admin = () => {
     const csvRows = [];
     const headers = columnsReport.map((col) => col.label).join(",");
     csvRows.push(headers);
-
+  
     records.forEach((record) => {
-      const values = columnsReport
-        .map((col) => `"${record[col.value]}"`)
-        .join(",");
+      const values = columnsReport.map((col) => {
+        // Handle the date formatting for the submissionDateTime column specifically
+        if (col.value === "submissionDateTime") {
+          const date = new Date(record[col.value]);
+          date.setHours(date.getHours() + 5); // Add 5 hours
+          date.setMinutes(date.getMinutes() + 30); // Add 30 minutes
+          return `"${date.toLocaleString("en-GB", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: true,
+          }).replace(",", "")}"`; // Removes the comma between date and time
+        } else {
+          return `"${record[col.value]}"`;
+        }
+      }).join(",");
       csvRows.push(values);
     });
-
+  
     const csvString = csvRows.join("\n");
     const blob = new Blob([csvString], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -252,7 +282,8 @@ const Admin = () => {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-  };
+    toast.success("Report downloaded successfully.");
+  };  
 
   const openModal = () => {
     setModalData({
@@ -386,7 +417,7 @@ const Admin = () => {
   return (
     <div className="container mx-auto p-4">
       <ToastContainer />
-      <div className="flex justify-between items-center">
+      <div className="justify-center">
         <div className="flex justify-center items-center">
           <img src={logo} alt="Logo" className="w-24 h-24" />
         </div>
