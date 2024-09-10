@@ -12,6 +12,9 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
 const Admin = () => {
+  // const url = "http://localhost:8081";
+  const url = "https://rkm-donation-form-backend.onrender.com";
+
   const [records, setRecords] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchColumn, setSearchColumn] = useState("name");
@@ -69,9 +72,6 @@ const Admin = () => {
     { label: "On Bank", value: "onBank" },
     { label: "Date/Time", value: "submissionDateTime" },
   ];
-
-  const url = "http://localhost:8081";
-  // const url = "https://rkm-donation-form-backend.onrender.com";
 
   useEffect(() => {
     const checkLoginStatus = async () => {
@@ -434,6 +434,7 @@ const Admin = () => {
           endDate={endDate}
           placeholderText="Start Date"
           className="border p-2 rounded"
+          dateFormat="dd-MM-yyyy"
         />
         <DatePicker
           selected={endDate}
@@ -444,6 +445,7 @@ const Admin = () => {
           minDate={startDate}
           placeholderText="End Date"
           className="border p-2 rounded"
+          dateFormat="dd-MM-yyyy"
         />
         <input
           type="text"

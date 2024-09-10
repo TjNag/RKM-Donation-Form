@@ -12,6 +12,9 @@ import "./Form.css";
 Modal.setAppElement("#root");
 
 const Form = () => {
+  // const url = 'http://localhost:8081';
+  const url = "https://rkm-donation-form-backend.onrender.com";
+
   const initialState = {
     submittedby_user: "",
     name: "",
@@ -64,13 +67,6 @@ const Form = () => {
   const [userOptions, setUserOptions] = useState([]);
   const [buttonText, setButtonText] = useState("Confirm Submission");
   const billRef = useRef(null);
-
-  // State for the Report Modal
-  const [showReportModal, setShowReportModal] = useState(false);
-  const [startDate, setStartDate] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [endTime, setEndTime] = useState("");
   const [reportData, setReportData] = useState([]);
   const [showReportDataModal, setShowReportDataModal] = useState(false);
   const [subTotal, setSubTotal] = useState(0); // State to hold the Sub Total
@@ -78,9 +74,6 @@ const Form = () => {
   const [password, setPassword] = useState("");
 
   const timerRef = useRef();
-
-  const url = 'http://localhost:8081';
-  // const url = "https://rkm-donation-form-backend.onrender.com";
 
   useEffect(() => {
     let timer;
@@ -418,10 +411,6 @@ const Form = () => {
       toast.error("Error fetching the report.");
     }
   };
-
-  // Functions to open/close the Report Modal
-  const openReportModal = () => setShowReportModal(true);
-  const closeReportModal = () => setShowReportModal(false);
 
   // Function to close the Report Data Modal
   const closeReportDataModal = () => setShowReportDataModal(false);
@@ -916,85 +905,6 @@ const Form = () => {
             </form>
           </div>
         </Modal>
-
-        {/* Report Modal */}
-        {/* <Modal
-        isOpen={showReportModal}
-        onRequestClose={closeReportModal}
-        contentLabel="View Report Modal"
-        className="fixed inset-0 flex items-center justify-center z-50 transform transition-transform duration-300 ease-out scale-100"
-        overlayClassName="fixed inset-0 bg-black bg-opacity-75 z-40 transition-opacity duration-300 ease-out opacity-100"
-      >
-        <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md mx-4 transform transition-transform duration-300 ease-out scale-100">
-          <div className="flex justify-end">
-            <AiOutlineClose
-              className="text-gray-500 hover:text-gray-800 cursor-pointer"
-              size={24}
-              onClick={closeReportModal} // This function will close the modal
-            />
-          </div>
-          <h2 className="text-2xl font-bold mb-4 text-center text-gray-800">View Report</h2>
-          <form>
-            <div className="mb-4">
-              <label htmlFor="startDate" className="block text-sm font-medium text-gray-700">
-                Start Date
-              </label>
-              <input
-                type="date"
-                id="startDate"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"
-              />
-            </div>
-            <div className="mb-4">
-              <label htmlFor="startTime" className="block text-sm font-medium text-gray-700">
-                Start Time
-              </label>
-              <input
-                type="time"
-                id="startTime"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"
-              />
-            </div>
-            <div className="mb-4">
-              <label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
-                End Date
-              </label>
-              <input
-                type="date"
-                id="endDate"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"
-              />
-            </div>
-            <div className="mb-4">
-              <label htmlFor="endTime" className="block text-sm font-medium text-gray-700">
-                End Time
-              </label>
-              <input
-                type="time"
-                id="endTime"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-md"
-              />
-            </div>
-            <div className="flex justify-center mt-6">
-              <button
-                type="button"
-                className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
-                onClick={handleReportRequest}
-              >
-                Confirm
-              </button>
-            </div>
-          </form>
-        </div>
-      </Modal> */}
 
         {/* Report Data Modal */}
         <Modal
