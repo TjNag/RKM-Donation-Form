@@ -8,6 +8,7 @@ import TestPrint from "./TestPrint";
 import logo from "../../assets/logo.png";
 import rkmgtemple from "../../assets/rkmgtemple.png";
 import "./Form.css";
+import { ClipLoader } from 'react-spinners';
 
 Modal.setAppElement("#root");
 
@@ -72,6 +73,9 @@ const Form = () => {
   const [subTotal, setSubTotal] = useState(0); // State to hold the Sub Total
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isReportLoading, setIsReportLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const timerRef = useRef();
 
@@ -121,6 +125,7 @@ const Form = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     if (username && password) {
+      setIsLoading(true);
       try {
         const response = await fetch(url + "/api/login", {
           method: "POST",
@@ -140,6 +145,7 @@ const Form = () => {
       } catch (error) {
         toast.error("Network Error. Please try again later.");
       }
+      setIsLoading(false);
     } else {
       toast.error("Please enter your credentials");
     }
@@ -269,6 +275,7 @@ const Form = () => {
 
   const handleConfirmSubmit = async () => {
     if (validateFormData()) {
+      setIsSubmitting(true);
       let finalPurpose = formData.purposeOfDonation;
       if (formData.purposeOfDonation.includes("(Please Specify)")) {
         finalPurpose = formData.purposeOfDonation.replace(
@@ -357,6 +364,7 @@ const Form = () => {
       } catch (error) {
         toast.error(error.message || "An error occurred!");
       }
+      setIsSubmitting(false);
     }
   };
 
@@ -384,6 +392,7 @@ const Form = () => {
   };
 
   const handleReportRequest = async () => {
+    setIsReportLoading(true);
     try {
       // const formattedStartTime = startTime || '00:00'; // Default to 00:00 if not provided
       // const formattedEndTime = endTime || '23:59'; // Default to 23:59 if not provided
@@ -410,6 +419,7 @@ const Form = () => {
     } catch (error) {
       toast.error("Error fetching the report.");
     }
+    setIsReportLoading(false);
   };
 
   // Function to close the Report Data Modal
@@ -507,8 +517,9 @@ const Form = () => {
             className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
             // onClick={openReportModal}
             onClick={handleReportRequest}
+            disabled={isReportLoading}
           >
-            View Report
+            {isReportLoading ? <ClipLoader size={18} color={"#FFFFFF"} /> : "View Report"}
           </button>
           <div className="flex items-center">
             <span className="text-gray-700 font-semibold mr-4">
@@ -816,8 +827,9 @@ const Form = () => {
                       <button
                         onClick={handleConfirmSubmit}
                         className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+                        disabled={isSubmitting}
                       >
-                        Confirm Submission
+                        {isSubmitting ? <ClipLoader size={20} color={"#FFFFFF"} /> : "Confirm Submission"}
                       </button>
                       <button
                         onClick={() => setShowPreview(false)}
@@ -899,8 +911,9 @@ const Form = () => {
               <button
                 type="submit"
                 className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded w-full transform transition-transform duration-300 ease-out hover:scale-105"
+                disabled={isLoading}
               >
-                Login
+                {isLoading ? <ClipLoader size={18} color={"#FFFFFF"} classname= "p-0 m-0" /> : "Login"}
               </button>
             </form>
           </div>
@@ -990,7 +1003,7 @@ const Form = () => {
                   {reportData.length > 0 && (
                     <tr>
                       <td
-                        colSpan="6"
+                        colSpan="7"
                         className="text-right font-bold px-4 py-2"
                       >
                         Sub Total
@@ -998,7 +1011,6 @@ const Form = () => {
                       <td className="font-bold px-4 py-2">
                         {subTotal.toFixed(2)}
                       </td>
-                      <td className="px-4 py-2"></td>
                     </tr>
                   )}
                 </tbody>
