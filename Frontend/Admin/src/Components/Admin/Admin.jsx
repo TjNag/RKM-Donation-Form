@@ -38,6 +38,7 @@ const Admin = () => {
   const [isViewUserModalOpen, setIsViewUserModalOpen] = useState(false);
   const [users, setUsers] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
+  const [shouldCheckLogin, setShouldCheckLogin] = useState(true);
 
   const columns = [
     { label: "Cashier", value: "submittedby_user" },
@@ -85,6 +86,7 @@ const Admin = () => {
 
   useEffect(() => {
     const checkLoginStatus = async () => {
+      if (!shouldCheckLogin) return;
       try {
         const { data } = await axios.get(url + "/api/check-login");
         setIsLoggedIn(data.isLoggedIn);
@@ -94,7 +96,7 @@ const Admin = () => {
       }
     };
     checkLoginStatus();
-  }, []);
+  }, [shouldCheckLogin]);
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -255,6 +257,7 @@ const Admin = () => {
       });
       if (response.data.success) {
         setIsLoggedIn(true);
+        setShouldCheckLogin(false);
         toast.success("Logged in successfully");
       } else {
         toast.error("Invalid credentials");
