@@ -829,7 +829,7 @@ const Form = () => {
                         className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
                         disabled={isSubmitting}
                       >
-                        {isSubmitting ? <ClipLoader size={20} color={"#FFFFFF"} /> : "Confirm Submission"}
+                        {isSubmitting ? <ClipLoader size={18} color={"#FFFFFF"} /> : "Confirm Submission"}
                       </button>
                       <button
                         onClick={() => setShowPreview(false)}

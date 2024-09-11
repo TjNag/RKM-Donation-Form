@@ -10,6 +10,8 @@ import Modal from "react-modal";
 import { debounce } from "lodash";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { ClipLoader } from "react-spinners";
+import "./Admin.css";
 
 const Admin = () => {
   // const url = "http://localhost:8081";
@@ -72,6 +74,14 @@ const Admin = () => {
     { label: "On Bank", value: "onBank" },
     { label: "Date/Time", value: "submissionDateTime" },
   ];
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isFetchingUsers, setIsFetchingUsers] = useState(false);
+  const [isAddingUser, setIsAddingUser] = useState(false);
+  const [deletingUsers, setDeletingUsers] = useState({});
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
+  const [isAcceptingBulk, setIsAcceptingBulk] = useState(false);
+  const [acceptingIds, setAcceptingIds] = useState({});
+  const [deletingIds, setDeletingIds] = useState({});
 
   useEffect(() => {
     const checkLoginStatus = async () => {
@@ -152,6 +162,7 @@ const Admin = () => {
   );
 
   const handleAcceptRecord = async (id) => {
+    setAcceptingIds((prev) => ({ ...prev, [id]: true }));
     try {
       const response = await axios.post(url + `/api/update-acceptance`, { id });
       if (response.data.success) {
@@ -168,10 +179,12 @@ const Admin = () => {
     } catch (error) {
       toast.error("An error occurred while accepting the record");
     }
+    setAcceptingIds((prev) => ({ ...prev, [id]: false }));
   };
 
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this record?")) {
+      setDeletingIds((prev) => ({ ...prev, [id]: true }));
       try {
         await axios.delete(url + `/api/delete-record/${id}`);
         setRecords(records.filter((record) => record.id !== id));
@@ -179,6 +192,7 @@ const Admin = () => {
       } catch (error) {
         toast.error("Failed to delete record");
       }
+      setDeletingIds((prev) => ({ ...prev, [id]: false }));
     }
   };
 
@@ -186,6 +200,7 @@ const Admin = () => {
     if (
       window.confirm("Are you sure you want to delete the selected records?")
     ) {
+      setIsDeletingBulk(true);
       try {
         await axios.delete(url + `/api/delete-records`, {
           data: { ids: selectedRows },
@@ -198,10 +213,12 @@ const Admin = () => {
       } catch (error) {
         toast.error("Failed to delete records");
       }
+      setIsDeletingBulk(false);
     }
   };
 
   const handleBulkAccept = async () => {
+    setIsAcceptingBulk(true);
     try {
       await Promise.all(
         selectedRows.map(async (id) => {
@@ -225,10 +242,12 @@ const Admin = () => {
     } catch (error) {
       toast.error("Failed to accept records");
     }
+    setIsAcceptingBulk(false);
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setIsLoggingIn(true);
     try {
       const response = await axios.post(url + `/api/adminlogin`, {
         username,
@@ -243,36 +262,41 @@ const Admin = () => {
     } catch (error) {
       toast.error("Login failed, please try again");
     }
+    setIsLoggingIn(false);
   };
 
   const handleDownloadCsv = () => {
     const csvRows = [];
     const headers = columnsReport.map((col) => col.label).join(",");
     csvRows.push(headers);
-  
+
     records.forEach((record) => {
-      const values = columnsReport.map((col) => {
-        // Handle the date formatting for the submissionDateTime column specifically
-        if (col.value === "submissionDateTime") {
-          const date = new Date(record[col.value]);
-          date.setHours(date.getHours() + 5); // Add 5 hours
-          date.setMinutes(date.getMinutes() + 30); // Add 30 minutes
-          return `"${date.toLocaleString("en-GB", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: true,
-          }).replace(",", "")}"`; // Removes the comma between date and time
-        } else {
-          return `"${record[col.value]}"`;
-        }
-      }).join(",");
+      const values = columnsReport
+        .map((col) => {
+          // Handle the date formatting for the submissionDateTime column specifically
+          if (col.value === "submissionDateTime") {
+            const date = new Date(record[col.value]);
+            date.setHours(date.getHours() + 5); // Add 5 hours
+            date.setMinutes(date.getMinutes() + 30); // Add 30 minutes
+            return `"${date
+              .toLocaleString("en-GB", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: true,
+              })
+              .replace(",", "")}"`; // Removes the comma between date and time
+          } else {
+            return `"${record[col.value]}"`;
+          }
+        })
+        .join(",");
       csvRows.push(values);
     });
-  
+
     const csvString = csvRows.join("\n");
     const blob = new Blob([csvString], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -283,7 +307,7 @@ const Admin = () => {
     a.click();
     document.body.removeChild(a);
     toast.success("Report downloaded successfully.");
-  };  
+  };
 
   const openModal = () => {
     setModalData({
@@ -298,6 +322,7 @@ const Admin = () => {
 
   const handleModalSubmit = async (e) => {
     e.preventDefault();
+    setIsAddingUser(true);
     const { newUsername, newPassword, userType, isUpdate, updateUser } =
       modalData;
     try {
@@ -322,6 +347,7 @@ const Admin = () => {
     } catch (error) {
       toast.error("Failed to save user data");
     }
+    setIsAddingUser(false);
   };
 
   const openUpdateModal = (user) => {
@@ -346,12 +372,14 @@ const Admin = () => {
   };
 
   const fetchUsers = async () => {
+    setIsFetchingUsers(true);
     try {
       const { data } = await axios.get(url + `/api/get-users`);
       setUsers(data);
     } catch (err) {
       toast.error("Failed to fetch users");
     }
+    setIsFetchingUsers(false);
   };
 
   useEffect(() => {
@@ -362,6 +390,7 @@ const Admin = () => {
 
   const handleDeleteUser = async (username) => {
     if (window.confirm("Are you sure you want to delete this user?")) {
+      setDeletingUsers((prev) => ({ ...prev, [username]: true }));
       try {
         const response = await axios.delete(
           url + `/api/delete-user/${username}`
@@ -375,6 +404,7 @@ const Admin = () => {
       } catch (error) {
         toast.error("Failed to delete user");
       }
+      setDeletingUsers((prev) => ({ ...prev, [username]: false }));
     }
   };
 
@@ -405,8 +435,9 @@ const Admin = () => {
             <button
               type="submit"
               className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-700"
+              disabled={isLoggingIn} // Disable button while logging in
             >
-              Login
+              {isLoggingIn ? <ClipLoader size={18} color={"#fff"} /> : "Login"}
             </button>
           </form>
         </div>
@@ -469,8 +500,9 @@ const Admin = () => {
         <button
           onClick={debouncedFetchRecords}
           className="bg-teal-500 hover:bg-teal-700 text-white p-2 rounded"
+          disabled={isLoading}
         >
-          <FaSync />
+          <FaSync className={isLoading ? 'spin-animation' : ''} />
         </button>
         <button
           onClick={handleDownloadCsv}
@@ -484,22 +516,35 @@ const Admin = () => {
         <button
           onClick={() => setIsViewUserModalOpen(true)}
           className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded"
+          disabled={isFetchingUsers}
         >
-          View Users
+          {isFetchingUsers ? (
+            <ClipLoader size={18} color={"#fff"} />
+          ) : (
+            "View Users"
+          )}
         </button>
         <button
           onClick={handleBulkDelete}
-          disabled={selectedRows.length === 0}
+          disabled={selectedRows.length === 0 || isDeletingBulk}
           className="bg-red-500 hover:bg-red-700 text-white p-2 rounded"
         >
-          Delete Selected
+          {isDeletingBulk ? (
+            <ClipLoader size={15} color={"#fff"} />
+          ) : (
+            "Delete Selected"
+          )}
         </button>
         <button
           onClick={handleBulkAccept}
-          disabled={selectedRows.length === 0}
+          disabled={selectedRows.length === 0 || isAcceptingBulk}
           className="bg-green-500 hover:bg-green-700 text-white p-2 rounded"
         >
-          Accept Selected
+          {isAcceptingBulk ? (
+            <ClipLoader size={15} color={"#fff"} />
+          ) : (
+            "Accept Selected"
+          )}
         </button>
         <div className="mt-2 flex items-center">
           <label className="mr-4">
@@ -524,7 +569,8 @@ const Admin = () => {
         </div>
       </div>
       {isLoading ? (
-        <p className="text-center">Loading...</p>
+        // <p className="text-center">Loading...</p>
+        <p className="text-center"><ClipLoader size={50} color={"#123abc"} /></p>
       ) : (
         <table className="min-w-full table-auto text-center">
           <thead className="bg-gradient-to-r from-teal-500 to-green-500 text-white">
@@ -597,15 +643,25 @@ const Admin = () => {
                   <button
                     onClick={() => handleDelete(record.id)}
                     className="bg-red-500 hover:bg-red-700 text-white p-1 rounded"
+                    disabled={deletingIds[record.id]}
                   >
-                    <FaTrash />
+                    {deletingIds[record.id] ? (
+                      <ClipLoader size={15} color={"#fff"} />
+                    ) : (
+                      <FaTrash />
+                    )}
                   </button>
                   {record.isAccepted === 0 && (
                     <button
                       onClick={() => handleAcceptRecord(record.id)}
                       className="bg-green-500 hover:bg-green-700 text-white p-1 rounded"
+                      disabled={acceptingIds[record.id]}
                     >
-                      <VscVerified />
+                      {acceptingIds[record.id] ? (
+                        <ClipLoader size={15} color={"#fff"} />
+                      ) : (
+                        <VscVerified />
+                      )}
                     </button>
                   )}
                 </td>
@@ -622,39 +678,52 @@ const Admin = () => {
         ariaHideApp={false}
         className="modal bg-white rounded-lg p-6 max-w-lg mx-auto mt-24 shadow-lg"
       >
-        <h2 className="text-2xl font-semibold text-center mb-4">Admin Users</h2>
+        <h2 className="text-2xl font-semibold text-center mb-4">
+          Admin & Users
+        </h2>
         <button
           onClick={openModal}
           className="bg-blue-500 hover:bg-blue-700 text-white p-2 rounded"
         >
           Add User
         </button>
-        <table className="min-w-full table-auto text-center mt-4">
-          <thead className="bg-gradient-to-r from-teal-500 to-green-500 text-white">
-            <tr>
-              <th className="px-4 py-2">Username</th>
-              <th className="px-4 py-2">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((user) => (
-              <tr
-                key={user.username}
-                className="bg-white border-b hover:bg-gray-100"
-              >
-                <td className="px-4 py-2">{user.username}</td>
-                <td className="px-4 py-2 flex justify-center space-x-2">
-                  <button
-                    onClick={() => handleDeleteUser(user.username)}
-                    className="bg-red-500 hover:bg-red-700 text-white p-1 rounded"
-                  >
-                    Delete
-                  </button>
-                </td>
+        {isFetchingUsers ? (
+          <div className="flex justify-center items-center mt-4">
+            <ClipLoader size={35} color={"#123abc"} />
+          </div>
+        ) : (
+          <table className="min-w-full table-auto text-center mt-4">
+            <thead className="bg-gradient-to-r from-teal-500 to-green-500 text-white">
+              <tr>
+                <th className="px-4 py-2">Username</th>
+                <th className="px-4 py-2">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {users.map((user) => (
+                <tr
+                  key={user.username}
+                  className="bg-white border-b hover:bg-gray-100"
+                >
+                  <td className="px-4 py-2">{user.username}</td>
+                  <td className="px-4 py-2 flex justify-center space-x-2">
+                    <button
+                      onClick={() => handleDeleteUser(user.username)}
+                      className="bg-red-500 hover:bg-red-700 text-white p-1 rounded"
+                      disabled={deletingUsers[user.username]}
+                    >
+                      {deletingUsers[user.username] ? (
+                        <ClipLoader size={15} color={"#fff"} />
+                      ) : (
+                        <FaTrash />
+                      )}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
         <button
           onClick={() => setIsViewUserModalOpen(false)}
           className="mt-4 bg-gray-500 hover:bg-gray-700 text-white p-2 rounded"
@@ -719,8 +788,15 @@ const Admin = () => {
             <button
               type="submit"
               className="bg-blue-500 hover:bg-blue-700 text-white py-2 px-4 rounded"
+              disabled={isAddingUser}
             >
-              {modalData.isUpdate ? "Update User" : "Add User"}
+              {isAddingUser ? (
+                <ClipLoader size={18} color={"#fff"} />
+              ) : modalData.isUpdate ? (
+                "Update User"
+              ) : (
+                "Add User"
+              )}
             </button>
           </div>
         </form>
