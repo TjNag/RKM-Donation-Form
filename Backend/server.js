@@ -5,14 +5,16 @@ const cors = require('cors');
 const bcrypt = require('bcrypt');
 const ExcelJS = require('exceljs');
 const app = express();
-const PORT = process.env.PORT || 8081;
+// const PORT = process.env.PORT || 8081;
+const PORT = process.env.PORT;
 
 app.use(cors());
 app.use(express.json());
 
 // Establish a PostgreSQL connection pool
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || 'postgresql://postgres.qrqrxpjovdcsywygrjom:rkmg_offline_form@2024@aws-0-ap-south-1.pooler.supabase.com:6543/postgres'
+    // connectionString: process.env.DATABASE_URL || 'postgresql://postgres.qrqrxpjovdcsywygrjom:rkmg_offline_form@2024@aws-0-ap-south-1.pooler.supabase.com:6543/postgres'
+    connectionString: process.env.DATABASE_URL
 });
 
 // Simple query wrapper to use async/await

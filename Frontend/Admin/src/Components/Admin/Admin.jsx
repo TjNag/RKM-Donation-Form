@@ -10,7 +10,7 @@ import Modal from "react-modal";
 import { debounce } from "lodash";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { ClipLoader } from "react-spinners";
+import { HashLoader } from "react-spinners";
 import "./Admin.css";
 
 const Admin = () => {
@@ -441,7 +441,7 @@ const Admin = () => {
               className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-700"
               disabled={isLoggingIn} // Disable button while logging in
             >
-              {isLoggingIn ? <ClipLoader size={18} color={"#fff"} /> : "Login"}
+              {isLoggingIn ? <HashLoader size={18} color={"#fff"} /> : "Login"}
             </button>
           </form>
         </div>
@@ -523,7 +523,7 @@ const Admin = () => {
           disabled={isFetchingUsers}
         >
           {isFetchingUsers ? (
-            <ClipLoader size={18} color={"#fff"} />
+            <HashLoader size={18} color={"#fff"} />
           ) : (
             "View Users"
           )}
@@ -534,7 +534,7 @@ const Admin = () => {
           className="bg-red-500 hover:bg-red-700 text-white p-2 rounded"
         >
           {isDeletingBulk ? (
-            <ClipLoader size={15} color={"#fff"} />
+            <HashLoader size={15} color={"#fff"} />
           ) : (
             "Delete Selected"
           )}
@@ -545,7 +545,7 @@ const Admin = () => {
           className="bg-green-500 hover:bg-green-700 text-white p-2 rounded"
         >
           {isAcceptingBulk ? (
-            <ClipLoader size={15} color={"#fff"} />
+            <HashLoader size={15} color={"#fff"} />
           ) : (
             "Accept Selected"
           )}
@@ -574,7 +574,7 @@ const Admin = () => {
       </div>
       {isLoading ? (
         // <p className="text-center">Loading...</p>
-        <p className="text-center"><ClipLoader size={50} color={"#123abc"} /></p>
+        <div className="flex justify-center items-center"><HashLoader size={50} color={"#46c795"} /></div>
       ) : (
         <table className="min-w-full table-auto text-center">
           <thead className="bg-gradient-to-r from-teal-500 to-green-500 text-white">
@@ -650,7 +650,7 @@ const Admin = () => {
                     disabled={deletingIds[record.id]}
                   >
                     {deletingIds[record.id] ? (
-                      <ClipLoader size={15} color={"#fff"} />
+                      <HashLoader size={15} color={"#fff"} />
                     ) : (
                       <FaTrash />
                     )}
@@ -662,7 +662,7 @@ const Admin = () => {
                       disabled={acceptingIds[record.id]}
                     >
                       {acceptingIds[record.id] ? (
-                        <ClipLoader size={15} color={"#fff"} />
+                        <HashLoader size={15} color={"#fff"} />
                       ) : (
                         <VscVerified />
                       )}
@@ -693,7 +693,7 @@ const Admin = () => {
         </button>
         {isFetchingUsers ? (
           <div className="flex justify-center items-center mt-4">
-            <ClipLoader size={35} color={"#123abc"} />
+            <HashLoader size={35} color={"#123abc"} />
           </div>
         ) : (
           <table className="min-w-full table-auto text-center mt-4">
@@ -717,7 +717,7 @@ const Admin = () => {
                       disabled={deletingUsers[user.username]}
                     >
                       {deletingUsers[user.username] ? (
-                        <ClipLoader size={15} color={"#fff"} />
+                        <HashLoader size={15} color={"#fff"} />
                       ) : (
                         <FaTrash />
                       )}
@@ -795,7 +795,7 @@ const Admin = () => {
               disabled={isAddingUser}
             >
               {isAddingUser ? (
-                <ClipLoader size={18} color={"#fff"} />
+                <HashLoader size={18} color={"#fff"} />
               ) : modalData.isUpdate ? (
                 "Update User"
               ) : (
