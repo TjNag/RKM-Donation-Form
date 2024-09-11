@@ -91,7 +91,8 @@ const Admin = () => {
         const { data } = await axios.get(url + "/api/check-login");
         setIsLoggedIn(data.isLoggedIn);
       } catch (error) {
-        toast.error("Failed to check login status");
+        //toast.error("Failed to check login status");
+        console.log(error)
         setIsLoggedIn(false);
       }
     };
