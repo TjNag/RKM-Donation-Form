@@ -8,12 +8,12 @@ import TestPrint from "./TestPrint";
 import logo from "../../assets/logo.png";
 import rkmgtemple from "../../assets/rkmgtemple.png";
 import "./Form.css";
-import { HashLoader } from 'react-spinners';
+import { HashLoader } from "react-spinners";
 
 Modal.setAppElement("#root");
 
 const Form = () => {
-  const url = 'http://localhost:8081';
+  const url = "http://192.168.0.238:8081";
 
   const initialState = {
     submittedby_user: "",
@@ -518,7 +518,11 @@ const Form = () => {
             onClick={handleReportRequest}
             disabled={isReportLoading}
           >
-            {isReportLoading ? <HashLoader size={18} color={"#FFFFFF"} /> : "View Report"}
+            {isReportLoading ? (
+              <HashLoader size={18} color={"#FFFFFF"} />
+            ) : (
+              "View Report"
+            )}
           </button>
           <div className="flex items-center">
             <span className="text-gray-700 font-semibold mr-4">
@@ -828,7 +832,11 @@ const Form = () => {
                         className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
                         disabled={isSubmitting}
                       >
-                        {isSubmitting ? <HashLoader size={18} color={"#FFFFFF"} /> : "Confirm Submission"}
+                        {isSubmitting ? (
+                          <HashLoader size={18} color={"#FFFFFF"} />
+                        ) : (
+                          "Confirm Submission"
+                        )}
                       </button>
                       <button
                         onClick={() => setShowPreview(false)}
@@ -912,7 +920,11 @@ const Form = () => {
                 className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded w-full transform transition-transform duration-300 ease-out hover:scale-105"
                 disabled={isLoading}
               >
-                {isLoading ? <HashLoader size={18} color={"#FFFFFF"} className= "p-0 m-0" /> : "Login"}
+                {isLoading ? (
+                  <HashLoader size={18} color={"#FFFFFF"} className="p-0 m-0" />
+                ) : (
+                  "Login"
+                )}
               </button>
             </form>
           </div>
