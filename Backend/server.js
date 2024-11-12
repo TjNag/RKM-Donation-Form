@@ -266,6 +266,32 @@ app.get('/api/records', async (req, res, next) => {
     }
 });
 
+// Fetch distinct user records by mobileNo
+app.get('/api/search-by-mobile', async (req, res, next) => {
+    const { mobileNo } = req.query;
+
+    if (!mobileNo) {
+        return res.status(400).json({ error: 'mobileNo query parameter is required.' });
+    }
+
+    try {
+        const sql = `
+            SELECT DISTINCT name, address, district, city, state, pinCode, mobileNo, altMobileNo, email, idType, idNo
+            FROM billingrecords
+            WHERE mobileNo = ?
+        `;
+        const results = await query(sql, [mobileNo]);
+
+        if (results.length === 0) {
+            return res.json({ message: 'No records found.', data: [] });
+        }
+
+        res.json({ message: 'Records fetched successfully.', data: results });
+    } catch (err) {
+        next(err);
+    }
+});
+
 
 // Start the server
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

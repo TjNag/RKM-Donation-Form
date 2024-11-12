@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { BsExclamationCircle } from "react-icons/bs";
+import { BsExclamationCircle, BsSearch } from "react-icons/bs";
 import { AiOutlineClose } from "react-icons/ai";
 import Modal from "react-modal";
 import TestPrint from "./TestPrint";
@@ -56,6 +56,11 @@ const Form = () => {
     dated: "",
     onBank: "",
   };
+
+  const [showSearchModal, setShowSearchModal] = useState(true); // Show on form load
+  const [searchMobileNo, setSearchMobileNo] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
 
   const [formData, setFormData] = useState(initialState);
   const [formErrors, setFormErrors] = useState(initialErrors);
@@ -175,6 +180,62 @@ const Form = () => {
       purposeOfDonation: "",
       specifyPurpose: "",
     }));
+  };
+
+  const handleSearch = async () => {
+    if (!/^\d{10}$/.test(searchMobileNo)) {
+      toast.error("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(
+        `${url}/api/search-by-mobile?mobileNo=${searchMobileNo}`
+      );
+      if (response.ok) {
+        const result = await response.json();
+        if (result.data && result.data.length > 0) {
+          setSearchResults(result.data);
+        } else {
+          setSearchResults([]);
+        }
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to fetch records.");
+      }
+    } catch (error) {
+      toast.error("Network Error. Please try again later.");
+    }
+    setIsSearching(false);
+  };
+
+  const handleAddUser = (user) => {
+    setFormData({
+      ...formData,
+      name: user.name || "",
+      address: user.address || "",
+      district: user.district || "",
+      city: user.city || "",
+      state: user.state || "",
+      pinCode: user.pinCode || "",
+      mobileNo: user.mobileNo || "",
+      altMobileNo: user.altMobileNo || "",
+      email: user.email || "",
+      idType: user.idType || "",
+      idNo: user.idNo || "",
+      // Retain other form fields as is
+    });
+    setShowSearchModal(false);
+    toast.success("Form pre-filled with selected user data.");
+  };
+
+  const handleProceedWithoutSearch = () => {
+    setFormData({
+      ...formData,
+      mobileNo: searchMobileNo,
+    });
+    setShowSearchModal(false);
   };
 
   const validateFormData = () => {
@@ -544,270 +605,285 @@ const Form = () => {
           </h1>
         </div>
 
-        <form onSubmit={handleGenerateBill} className="space-y-6 px-4 sm:px-8">
-          {[
-            { label: "Name", id: "name", type: "text", required: true },
-            { label: "Address", id: "address", type: "text", required: true },
-            { label: "District", id: "district", type: "text", required: true },
-            { label: "City", id: "city", type: "text", required: true },
-            { label: "State", id: "state", type: "text", required: true },
-            { label: "Pin Code", id: "pinCode", type: "text", required: true },
-            {
-              label: "Mobile No",
-              id: "mobileNo",
-              type: "text",
-              required: true,
-            },
-            { label: "Alternate Mobile No", id: "altMobileNo", type: "text" },
-            { label: "Email", id: "email", type: "email" },
-            {
-              label: "ID Type",
-              id: "idType",
-              type: "select",
-              required: true,
-              options: [
-                "Aadhar Card",
-                "PAN Card",
-                "Driving Licence",
-                "Voter Card",
-                "Passport",
-              ],
-            },
-            { label: "ID Number", id: "idNo", type: "text", required: true },
-            {
-              label: "Purpose of Donation",
-              id: "purposeOfDonation",
-              type: "select",
-              required: true,
-              options: [
-                "Thakur Seva",
-                "Sadhu Seva",
-                "Monthly",
-                "Durga Puja",
-                "Kali Puja",
-                "Saraswati Puja",
-                "Shadoshi Puja",
-                "Tithi - Thakur",
-                "Tithi - Maa",
-                "Tithi - Swamiji",
-                "Development Fund (Please Specify)",
-                "Permanent Fund (Please Specify)",
-                "Others (Please Specify)",
-              ],
-            },
-            {
-              label: "Donation Method",
-              id: "donationMethod",
-              type: "select",
-              required: true,
-              options: ["Cash", "Cheque", "Bank Transfer (PoS)"],
-            },
-            { label: "Amount", id: "amount", type: "number", required: true },
-          ].map((field) =>
-            field.type !== "select" ? (
-              <div key={field.id} className="flex flex-col">
-                <label
-                  htmlFor={field.id}
-                  className="mb-2 font-medium flex items-center"
-                >
-                  {field.label}
-                  {field.required && <span className="text-red-400">*</span>}
-                </label>
-                <div className="flex items-center">
-                  <input
-                    type={field.type}
-                    id={field.id}
-                    name={field.id}
-                    value={formData[field.id]}
-                    onChange={handleChange}
-                    placeholder={`Enter ${field.label}`}
-                    className={`w-full p-2 border ${
-                      formErrors[field.id]
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700`}
-                    required={field.required}
-                    aria-label={field.label}
-                  />
-                  {formErrors[field.id] && (
-                    <BsExclamationCircle className="text-red-500 text-3xl ml-2 animate-pulse" />
-                  )}
-                </div>
-                {formErrors[field.id] && (
-                  <span className="text-red-500 text-sm mt-1">
-                    {formErrors[field.id]}
-                  </span>
-                )}
-              </div>
-            ) : (
-              <div key={field.id} className="flex flex-col">
-                <label
-                  htmlFor={field.id}
-                  className="mb-2 font-medium flex items-center"
-                >
-                  {field.label}
-                  <span className="text-red-400">*</span>
-                </label>
-                <div className="flex items-center">
-                  <select
-                    id={field.id}
-                    name={field.id}
-                    value={formData[field.id]}
-                    onChange={
-                      field.id === "purposeOfDonation"
-                        ? handlePurposeChange
-                        : handleChange
-                    }
-                    className={`w-full p-2 border ${
-                      formErrors[field.id]
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700`}
-                    required={field.required}
-                    aria-label={field.label}
+        {!showSearchModal && (
+          <form
+            onSubmit={handleGenerateBill}
+            className="space-y-6 px-4 sm:px-8"
+          >
+            {[
+              { label: "Name", id: "name", type: "text", required: true },
+              { label: "Address", id: "address", type: "text", required: true },
+              {
+                label: "District",
+                id: "district",
+                type: "text",
+                required: true,
+              },
+              { label: "City", id: "city", type: "text", required: true },
+              { label: "State", id: "state", type: "text", required: true },
+              {
+                label: "Pin Code",
+                id: "pinCode",
+                type: "text",
+                required: true,
+              },
+              {
+                label: "Mobile No",
+                id: "mobileNo",
+                type: "text",
+                required: true,
+              },
+              { label: "Alternate Mobile No", id: "altMobileNo", type: "text" },
+              { label: "Email", id: "email", type: "email" },
+              {
+                label: "ID Type",
+                id: "idType",
+                type: "select",
+                required: true,
+                options: [
+                  "Aadhar Card",
+                  "PAN Card",
+                  "Driving Licence",
+                  "Voter Card",
+                  "Passport",
+                ],
+              },
+              { label: "ID Number", id: "idNo", type: "text", required: true },
+              {
+                label: "Purpose of Donation",
+                id: "purposeOfDonation",
+                type: "select",
+                required: true,
+                options: [
+                  "Thakur Seva",
+                  "Sadhu Seva",
+                  "Monthly",
+                  "Durga Puja",
+                  "Kali Puja",
+                  "Saraswati Puja",
+                  "Shadoshi Puja",
+                  "Tithi - Thakur",
+                  "Tithi - Maa",
+                  "Tithi - Swamiji",
+                  "Development Fund (Please Specify)",
+                  "Permanent Fund (Please Specify)",
+                  "Others (Please Specify)",
+                ],
+              },
+              {
+                label: "Donation Method",
+                id: "donationMethod",
+                type: "select",
+                required: true,
+                options: ["Cash", "Cheque", "Bank Transfer (PoS)"],
+              },
+              { label: "Amount", id: "amount", type: "number", required: true },
+            ].map((field) =>
+              field.type !== "select" ? (
+                <div key={field.id} className="flex flex-col">
+                  <label
+                    htmlFor={field.id}
+                    className="mb-2 font-medium flex items-center"
                   >
-                    <option value="">Select</option>
-                    {field.options.map((option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    ))}
-                  </select>
+                    {field.label}
+                    {field.required && <span className="text-red-400">*</span>}
+                  </label>
+                  <div className="flex items-center">
+                    <input
+                      type={field.type}
+                      id={field.id}
+                      name={field.id}
+                      value={formData[field.id]}
+                      onChange={handleChange}
+                      placeholder={`Enter ${field.label}`}
+                      className={`w-full p-2 border ${
+                        formErrors[field.id]
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700`}
+                      required={field.required}
+                      aria-label={field.label}
+                    />
+                    {formErrors[field.id] && (
+                      <BsExclamationCircle className="text-red-500 text-3xl ml-2 animate-pulse" />
+                    )}
+                  </div>
                   {formErrors[field.id] && (
-                    <BsExclamationCircle className="text-red-500 text-3xl ml-2 animate-pulse" />
+                    <span className="text-red-500 text-sm mt-1">
+                      {formErrors[field.id]}
+                    </span>
                   )}
                 </div>
-                {formErrors[field.id] && (
-                  <span className="text-red-500 text-sm mt-1">
-                    {formErrors[field.id]}
-                  </span>
-                )}
-                {field.id === "purposeOfDonation" &&
-                  formData.purposeOfDonation.includes("(Please Specify)") && (
-                    <div className="flex flex-col mt-2">
-                      <label
-                        htmlFor="specifyPurpose"
-                        className="mb-2 font-medium flex items-center"
-                      >
-                        Please Specify
-                      </label>
-                      <div className="flex items-center">
-                        <input
-                          type="text"
-                          id="specifyPurpose"
-                          name="specifyPurpose"
-                          value={formData.specifyPurpose}
-                          onChange={handleChange}
-                          placeholder="Enter the specific purpose"
-                          className={`w-full p-2 border ${
-                            formErrors.specifyPurpose
-                              ? "border-red-500"
-                              : "border-gray-300"
-                          } rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700`}
-                          aria-label="Specify Purpose"
-                        />
+              ) : (
+                <div key={field.id} className="flex flex-col">
+                  <label
+                    htmlFor={field.id}
+                    className="mb-2 font-medium flex items-center"
+                  >
+                    {field.label}
+                    <span className="text-red-400">*</span>
+                  </label>
+                  <div className="flex items-center">
+                    <select
+                      id={field.id}
+                      name={field.id}
+                      value={formData[field.id]}
+                      onChange={
+                        field.id === "purposeOfDonation"
+                          ? handlePurposeChange
+                          : handleChange
+                      }
+                      className={`w-full p-2 border ${
+                        formErrors[field.id]
+                          ? "border-red-500"
+                          : "border-gray-300"
+                      } rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700`}
+                      required={field.required}
+                      aria-label={field.label}
+                    >
+                      <option value="">Select</option>
+                      {field.options.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                    {formErrors[field.id] && (
+                      <BsExclamationCircle className="text-red-500 text-3xl ml-2 animate-pulse" />
+                    )}
+                  </div>
+                  {formErrors[field.id] && (
+                    <span className="text-red-500 text-sm mt-1">
+                      {formErrors[field.id]}
+                    </span>
+                  )}
+                  {field.id === "purposeOfDonation" &&
+                    formData.purposeOfDonation.includes("(Please Specify)") && (
+                      <div className="flex flex-col mt-2">
+                        <label
+                          htmlFor="specifyPurpose"
+                          className="mb-2 font-medium flex items-center"
+                        >
+                          Please Specify
+                        </label>
+                        <div className="flex items-center">
+                          <input
+                            type="text"
+                            id="specifyPurpose"
+                            name="specifyPurpose"
+                            value={formData.specifyPurpose}
+                            onChange={handleChange}
+                            placeholder="Enter the specific purpose"
+                            className={`w-full p-2 border ${
+                              formErrors.specifyPurpose
+                                ? "border-red-500"
+                                : "border-gray-300"
+                            } rounded focus:outline-none focus:ring-2 focus:ring-orange-500 text-gray-700`}
+                            aria-label="Specify Purpose"
+                          />
+                          {formErrors.specifyPurpose && (
+                            <BsExclamationCircle className="text-red-500 text-3xl ml-2 animate-pulse" />
+                          )}
+                        </div>
                         {formErrors.specifyPurpose && (
-                          <BsExclamationCircle className="text-red-500 text-3xl ml-2 animate-pulse" />
+                          <span className="text-red-500 text-sm mt-1">
+                            {formErrors.specifyPurpose}
+                          </span>
                         )}
                       </div>
-                      {formErrors.specifyPurpose && (
-                        <span className="text-red-500 text-sm mt-1">
-                          {formErrors.specifyPurpose}
-                        </span>
-                      )}
-                    </div>
+                    )}
+                </div>
+              )
+            )}
+
+            {formData.donationMethod === "Cheque" && (
+              <div className="flex space-x-4">
+                <div className="flex flex-col">
+                  <label htmlFor="chequeNo" className="mb-2 font-medium">
+                    Cheque No <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="chequeNo"
+                    name="chequeNo"
+                    value={formData.chequeNo}
+                    onChange={handleChange}
+                    placeholder="Enter Cheque No"
+                    className={`w-full p-2 border ${
+                      formErrors.chequeNo ? "border-red-500" : "border-gray-300"
+                    } rounded`}
+                    required
+                    pattern="\d{6}" // Ensure that chequeNo is 6 digits
+                  />
+                  {formErrors.chequeNo && (
+                    <span className="text-red-500 text-sm mt-1">
+                      {formErrors.chequeNo}
+                    </span>
                   )}
+                </div>
+                <div className="flex flex-col">
+                  <label htmlFor="dated" className="mb-2 font-medium">
+                    Dated <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    id="dated"
+                    name="dated"
+                    value={formData.dated}
+                    onChange={handleChange}
+                    className={`w-full p-2 border ${
+                      formErrors.dated ? "border-red-500" : "border-gray-300"
+                    } rounded`}
+                    required
+                  />
+                  {formErrors.dated && (
+                    <span className="text-red-500 text-sm mt-1">
+                      {formErrors.dated}
+                    </span>
+                  )}
+                </div>
+                <div className="flex flex-col">
+                  <label htmlFor="onBank" className="mb-2 font-medium">
+                    On Bank <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    id="onBank"
+                    name="onBank"
+                    value={formData.onBank}
+                    onChange={handleChange}
+                    placeholder="Enter Bank Name"
+                    className={`w-full p-2 border ${
+                      formErrors.onBank ? "border-red-500" : "border-gray-300"
+                    } rounded`}
+                    required
+                  />
+                  {formErrors.onBank && (
+                    <span className="text-red-500 text-sm mt-1">
+                      {formErrors.onBank}
+                    </span>
+                  )}
+                </div>
               </div>
-            )
-          )}
+            )}
 
-          {formData.donationMethod === "Cheque" && (
-            <div className="flex space-x-4">
-              <div className="flex flex-col">
-                <label htmlFor="chequeNo" className="mb-2 font-medium">
-                  Cheque No <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="chequeNo"
-                  name="chequeNo"
-                  value={formData.chequeNo}
-                  onChange={handleChange}
-                  placeholder="Enter Cheque No"
-                  className={`w-full p-2 border ${
-                    formErrors.chequeNo ? "border-red-500" : "border-gray-300"
-                  } rounded`}
-                  required
-                  pattern="\d{6}" // Ensure that chequeNo is 6 digits
-                />
-                {formErrors.chequeNo && (
-                  <span className="text-red-500 text-sm mt-1">
-                    {formErrors.chequeNo}
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-col">
-                <label htmlFor="dated" className="mb-2 font-medium">
-                  Dated <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="date"
-                  id="dated"
-                  name="dated"
-                  value={formData.dated}
-                  onChange={handleChange}
-                  className={`w-full p-2 border ${
-                    formErrors.dated ? "border-red-500" : "border-gray-300"
-                  } rounded`}
-                  required
-                />
-                {formErrors.dated && (
-                  <span className="text-red-500 text-sm mt-1">
-                    {formErrors.dated}
-                  </span>
-                )}
-              </div>
-              <div className="flex flex-col">
-                <label htmlFor="onBank" className="mb-2 font-medium">
-                  On Bank <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="onBank"
-                  name="onBank"
-                  value={formData.onBank}
-                  onChange={handleChange}
-                  placeholder="Enter Bank Name"
-                  className={`w-full p-2 border ${
-                    formErrors.onBank ? "border-red-500" : "border-gray-300"
-                  } rounded`}
-                  required
-                />
-                {formErrors.onBank && (
-                  <span className="text-red-500 text-sm mt-1">
-                    {formErrors.onBank}
-                  </span>
-                )}
-              </div>
+            <div className="flex flex-col sm:flex-row justify-between mt-6 space-y-4 sm:space-y-0">
+              <button
+                type="submit"
+                className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded w-full sm:w-auto"
+              >
+                Preview Receipt
+              </button>
+              <button
+                type="button"
+                onClick={handleClear}
+                className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded w-full sm:w-auto"
+              >
+                Clear All
+              </button>
             </div>
-          )}
-
-          <div className="flex flex-col sm:flex-row justify-between mt-6 space-y-4 sm:space-y-0">
-            <button
-              type="submit"
-              className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded w-full sm:w-auto"
-            >
-              Preview Receipt
-            </button>
-            <button
-              type="button"
-              onClick={handleClear}
-              className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded w-full sm:w-auto"
-            >
-              Clear All
-            </button>
-          </div>
-        </form>
+          </form>
+        )}
         <ToastContainer />
 
         {/* Preview Modal */}
@@ -927,6 +1003,82 @@ const Form = () => {
                 )}
               </button>
             </form>
+          </div>
+        </Modal>
+
+        {/* Search Modal */}
+        <Modal
+          isOpen={showSearchModal}
+          onRequestClose={() => {}} // Disable closing by clicking outside
+          shouldCloseOnOverlayClick={false}
+          contentLabel="Search Existing Records"
+          className="fixed inset-0 flex items-center justify-center z-50 bg-transparent"
+          overlayClassName="fixed inset-0 bg-black bg-opacity-50 z-40"
+        >
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+            <h2 className="text-2xl font-semibold mb-4 text-center">
+              Search Existing Records
+            </h2>
+            <div className="flex mb-4">
+              <input
+                type="text"
+                placeholder="Enter Mobile Number"
+                value={searchMobileNo}
+                onChange={(e) => setSearchMobileNo(e.target.value)}
+                className="flex-grow p-2 border border-gray-300 rounded-l focus:outline-none focus:ring-2 focus:ring-orange-500"
+                aria-label="Mobile Number"
+              />
+              <button
+                onClick={handleSearch}
+                className="bg-orange-500 hover:bg-orange-600 text-white p-2 rounded-r"
+                aria-label="Search"
+                disabled={isSearching}
+              >
+                {isSearching ? (
+                  <HashLoader size={18} color="#FFFFFF" />
+                ) : (
+                  <BsSearch />
+                )}
+              </button>
+            </div>
+            {searchResults.length > 0 && (
+              <table className="min-w-full border">
+                <thead>
+                  <tr>
+                    <th className="px-4 py-2 border">Name</th>
+                    <th className="px-4 py-2 border">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {searchResults.map((user, index) => (
+                    <tr key={index}>
+                      <td className="px-4 py-2 border">{user.name}</td>
+                      <td className="px-4 py-2 border">
+                        <button
+                          onClick={() => handleAddUser(user)}
+                          className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
+                        >
+                          Add
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+            {searchResults.length === 0 && !isSearching && (
+              <p className="text-center text-gray-600 mt-4">
+                No records found. You can proceed to fill the form.
+              </p>
+            )}
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={handleProceedWithoutSearch}
+                className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
+              >
+                Proceed Without Search
+              </button>
+            </div>
           </div>
         </Modal>
 
