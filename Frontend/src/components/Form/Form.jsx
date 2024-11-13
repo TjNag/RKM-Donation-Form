@@ -57,7 +57,7 @@ const Form = () => {
     onBank: "",
   };
 
-  const [showSearchModal, setShowSearchModal] = useState(true); // Show on form load
+  const [showSearchModal, setShowSearchModal] = useState(false); // Show on form load
   const [searchMobileNo, setSearchMobileNo] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -143,6 +143,9 @@ const Form = () => {
           localStorage.setItem("loggedInUser", username);
           setShowLoginModal(false);
           toast.success("Login successful!");
+          setSearchResults([]);
+          setSearchMobileNo("");
+          setShowSearchModal(true);
         } else {
           toast.error("Invalid credentials");
         }
@@ -433,6 +436,9 @@ const Form = () => {
     setFormErrors(initialErrors);
     setButtonText("Confirm Submission"); // Reset button text to initial state
     setShowPreview(false);
+    setSearchResults([]);
+    setSearchMobileNo("");
+    setShowSearchModal(true);
   };
 
   const handlePrint = () => {
