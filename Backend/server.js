@@ -236,8 +236,6 @@ app.get('/api/records', async (req, res, next) => {
     const { column, value, startDate, endDate, showUnaccepted } = req.query;
     let sql = 'SELECT * FROM billingrecords WHERE 1=1';
     const filters = [];
-    const adjustedStartDate = new Date(new Date(startDate).setDate(new Date(startDate).getDate() + 1));
-    const adjustedEndDate = new Date(new Date(endDate).setDate(new Date(endDate).getDate() + 1));
 
     if (column && value) {
         sql += ` AND ${mysql.escapeId(column)} LIKE ?`;
@@ -246,12 +244,12 @@ app.get('/api/records', async (req, res, next) => {
 
     if (startDate) {
         sql += ' AND DATE(submissionDateTime) >= ?';
-        filters.push(adjustedStartDate);
+        filters.push(startDate);
     }
 
     if (endDate) {
         sql += ' AND DATE(submissionDateTime) <= ?';
-        filters.push(adjustedEndDate);
+        filters.push(endDate);
     }
 
     if (showUnaccepted && parseInt(showUnaccepted, 10) === 1) {

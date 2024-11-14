@@ -53,16 +53,21 @@ const Admin = () => {
   ];
 
   const columnsReport = [
-    { label: "Cashier", value: "submittedby_user" },
+    { label: "Date", value: "submissionDateTime" },
     { label: "Receipt ID", value: "receiptId" },
     { label: "Name", value: "name" },
-    { label: "Address", value: "address" },
-    { label: "District", value: "district" },
-    { label: "City", value: "city" },
-    { label: "State", value: "state" },
-    { label: "Pin Code", value: "pinCode" },
-    { label: "Mobile No.", value: "mobileNo" },
-    { label: "Alternate Mobile No.", value: "altMobileNo" },
+    {
+      label: "Address",
+      format: (record) =>
+        `${record.address}, ${record.district}, ${record.city}, ${record.state} - ${record.pinCode}`,
+    },
+    {
+      label: "Mobile No.",
+      format: (record) =>
+        record.altMobileNo
+          ? `${record.mobileNo} / ${record.altMobileNo}`
+          : record.mobileNo,
+    },
     { label: "Email", value: "email" },
     { label: "ID Type", value: "idType" },
     { label: "ID Number", value: "idNo" },
@@ -72,7 +77,7 @@ const Admin = () => {
     { label: "Cheque No", value: "chequeNo" },
     { label: "Dated", value: "dated" },
     { label: "On Bank", value: "onBank" },
-    { label: "Date/Time", value: "submissionDateTime" },
+    { label: "Cashier", value: "submittedby_user" },
   ];
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isFetchingUsers, setIsFetchingUsers] = useState(false);
@@ -276,24 +281,30 @@ const Admin = () => {
     records.forEach((record) => {
       const values = columnsReport
         .map((col) => {
-          // Handle the date formatting for the submissionDateTime column specifically
-          if (col.value === "submissionDateTime") {
-            const date = new Date(record[col.value]);
-            // date.setHours(date.getHours() + 5); // Add 5 hours
-            // date.setMinutes(date.getMinutes() + 30); // Add 30 minutes
-            return `"${date
-              .toLocaleString("en-GB", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-                second: "2-digit",
-                hour12: true,
-              })
-              .replace(",", "")}"`; // Removes the comma between date and time
-          } else {
-            return `"${record[col.value]}"`;
+          if (col.value) {
+            if (col.value === "submissionDateTime") {
+              const date = new Date(record[col.value]);
+              return `"${date
+                .toLocaleString("en-GB", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })
+                .replace(",", "")}"`;
+            } else if (col.value === "dated" && record[col.value] != null) {
+              const date = new Date(record[col.value]);
+              return `"${date
+                .toLocaleString("en-GB", {
+                  day: "2-digit",
+                  month: "2-digit",
+                  year: "numeric",
+                })
+                .replace(",", "")}"`;
+            } else {
+              return `"${record[col.value] === null ? "" : record[col.value]}"`;
+            }
+          } else if (col.format) {
+            return `"${col.format(record)}"`;
           }
         })
         .join(",");
