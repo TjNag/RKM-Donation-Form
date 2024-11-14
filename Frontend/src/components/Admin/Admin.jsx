@@ -279,8 +279,8 @@ const Admin = () => {
           // Handle the date formatting for the submissionDateTime column specifically
           if (col.value === "submissionDateTime") {
             const date = new Date(record[col.value]);
-            date.setHours(date.getHours() + 5); // Add 5 hours
-            date.setMinutes(date.getMinutes() + 30); // Add 30 minutes
+            // date.setHours(date.getHours() + 5); // Add 5 hours
+            // date.setMinutes(date.getMinutes() + 30); // Add 30 minutes
             return `"${date
               .toLocaleString("en-GB", {
                 day: "2-digit",
@@ -627,8 +627,8 @@ const Admin = () => {
                     {column.value === "submissionDateTime"
                       ? (() => {
                           const date = new Date(record[column.value]);
-                          date.setHours(date.getHours() + 5); // Add 5 hours
-                          date.setMinutes(date.getMinutes() + 30); // Add 30 minutes
+                          // date.setHours(date.getHours() + 5); // Add 5 hours
+                          // date.setMinutes(date.getMinutes() + 30); // Add 30 minutes
                           return date
                             .toLocaleString("en-GB", {
                               day: "2-digit",

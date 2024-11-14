@@ -143,8 +143,6 @@ const Form = () => {
           localStorage.setItem("loggedInUser", username);
           setShowLoginModal(false);
           toast.success("Login successful!");
-          setSearchResults([]);
-          setSearchMobileNo("");
           setShowSearchModal(true);
         } else {
           toast.error("Invalid credentials");
@@ -230,6 +228,8 @@ const Form = () => {
       // Retain other form fields as is
     });
     setShowSearchModal(false);
+    setSearchResults([]);
+    setSearchMobileNo("");
     toast.success("Form pre-filled with selected user data.");
   };
 
@@ -239,6 +239,8 @@ const Form = () => {
       mobileNo: searchMobileNo,
     });
     setShowSearchModal(false);
+    setSearchResults([]);
+    setSearchMobileNo("");
   };
 
   const validateFormData = () => {
@@ -436,8 +438,6 @@ const Form = () => {
     setFormErrors(initialErrors);
     setButtonText("Confirm Submission"); // Reset button text to initial state
     setShowPreview(false);
-    setSearchResults([]);
-    setSearchMobileNo("");
     setShowSearchModal(true);
   };
 
@@ -450,11 +450,13 @@ const Form = () => {
     printWindow.document.write("</body></html>");
     printWindow.document.close();
     printWindow.focus();
-    printWindow.onafterprint = () => {
-      printWindow.close();
-      handleClear();
+    printWindow.onload = () => {
+      printWindow.print(); // Trigger the print dialog
     };
-    // 2000 milliseconds = 2 seconds
+    printWindow.onafterprint = () => {
+      printWindow.close(); // Close the print window after printing
+      handleClear(); // Clear form data or perform other cleanup
+    };
   };
 
   const handleReportRequest = async () => {
@@ -515,8 +517,6 @@ const Form = () => {
       row.amount,
       (() => {
         const date = new Date(row.submissionDateTime);
-        date.setHours(date.getHours() + 5); // Add 5 hours
-        date.setMinutes(date.getMinutes() + 30); // Add 30 minutes
         return date
           .toLocaleString("en-GB", {
             day: "2-digit",
@@ -579,20 +579,28 @@ const Form = () => {
       <div className="container mx-auto p-4 bg-gradient-to-r from-orange-300 via-yellow-300 to-orange-300 opacity-80 shadow-lg rounded-lg max-w-3xl no-scrollbar h-screen overflow-y-scroll">
         {/* Header with View Report and Logged-in User */}
         <div className="flex justify-between items-center mb-6">
-          <button
-            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
-            // onClick={openReportModal}
-            onClick={handleReportRequest}
-            disabled={isReportLoading}
-          >
-            {isReportLoading ? (
-              <HashLoader size={18} color={"#FFFFFF"} />
-            ) : (
-              "View Report"
-            )}
-          </button>
           <div className="flex items-center">
-            <span className="text-gray-700 font-semibold mr-4">
+            <button
+              className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded mr-4"
+              // onClick={openReportModal}
+              onClick={handleReportRequest}
+              disabled={isReportLoading}
+            >
+              {isReportLoading ? (
+                <HashLoader size={18} color={"#FFFFFF"} />
+              ) : (
+                "View Report"
+              )}
+            </button>
+            <button
+              onClick={handleClear}
+              className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded mr-4"
+            >
+              Search Records
+            </button>
+          </div>
+          <div className="flex items-center">
+            <span className="text-gray-700 font-semibold mr-2">
               Logged in as: {loggedInUser}
             </span>
             <button
@@ -1015,7 +1023,7 @@ const Form = () => {
         {/* Search Modal */}
         <Modal
           isOpen={showSearchModal}
-          onRequestClose={() => {}} // Disable closing by clicking outside
+          onRequestClose={handleProceedWithoutSearch}
           shouldCloseOnOverlayClick={false}
           contentLabel="Search Existing Records"
           className="fixed inset-0 flex items-center justify-center z-50 bg-transparent"
@@ -1033,6 +1041,11 @@ const Form = () => {
                 onChange={(e) => setSearchMobileNo(e.target.value)}
                 className="flex-grow p-2 border border-gray-300 rounded-l focus:outline-none focus:ring-2 focus:ring-orange-500"
                 aria-label="Mobile Number"
+                onKeyPress={(e) => {
+                  if (e.key === "Enter" && !isSearching) {
+                    handleSearch();
+                  }
+                }}
               />
               <button
                 onClick={handleSearch}
@@ -1144,8 +1157,6 @@ const Form = () => {
                         <td className="border px-4 py-2">
                           {(() => {
                             const date = new Date(row.submissionDateTime);
-                            date.setHours(date.getHours() + 5); // Add 5 hours
-                            date.setMinutes(date.getMinutes() + 30); // Add 30 minutes
                             return date
                               .toLocaleString("en-GB", {
                                 day: "2-digit",
