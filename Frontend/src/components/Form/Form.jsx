@@ -450,11 +450,11 @@ const Form = () => {
     printWindow.document.write("</body></html>");
     printWindow.document.close();
     printWindow.focus();
-    printWindow.print();
     printWindow.onafterprint = () => {
       printWindow.close();
       handleClear();
     };
+    // 2000 milliseconds = 2 seconds
   };
 
   const handleReportRequest = async () => {
