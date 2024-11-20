@@ -140,7 +140,7 @@ const TestPrint = ({ formData }) => {
         style={{
           position: "absolute",
           top: "5.35cm",
-          left: "6.3cm",
+          left: "6.27cm",
           width: "15cm",
         }}
         className="text-lg"
@@ -150,8 +150,19 @@ const TestPrint = ({ formData }) => {
       <div
         style={{
           position: "absolute",
+          top: "5.35cm",
+          left: "15.37cm",
+          width: "15cm",
+        }}
+        className="text-lg"
+      >
+        {formData.mobileNo}
+      </div>
+      <div
+        style={{
+          position: "absolute",
           top: "6.19cm",
-          left: "2.45cm",
+          left: "2.4cm",
           width: "15cm",
         }}
         className="text-lg"
@@ -162,7 +173,7 @@ const TestPrint = ({ formData }) => {
         style={{
           position: "absolute",
           top: "7.01cm",
-          left: "2.45cm",
+          left: "2.4cm",
           width: "15cm",
         }}
         className="text-lg"
@@ -174,7 +185,7 @@ const TestPrint = ({ formData }) => {
         style={{
           position: "absolute",
           top: "7.83cm",
-          left: "2.5cm",
+          left: "2.45cm",
           width: "15cm",
         }}
         className="text-lg"
@@ -218,7 +229,7 @@ const TestPrint = ({ formData }) => {
         style={{
           position: "absolute",
           top: "10.3cm",
-          left: "4.5cm",
+          left: "4.55cm",
           width: "15cm",
         }}
         className="text-lg"

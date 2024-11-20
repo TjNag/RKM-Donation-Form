@@ -13,7 +13,8 @@ import { HashLoader } from "react-spinners";
 Modal.setAppElement("#root");
 
 const Form = () => {
-  const url = "http://192.168.0.238:8081";
+  // const url = "http://192.168.0.238:8081";
+  const url = "http://localhost:8081";
 
   const initialState = {
     submittedby_user: "",
